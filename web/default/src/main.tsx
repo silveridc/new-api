@@ -1,0 +1,207 @@
+/*
+Copyright (C) 2023-2026 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
+import { StrictMode } from 'react'
+import ReactDOM from 'react-dom/client'
+import { AxiosError } from 'axios'
+import {
+  QueryCache,
+  QueryClient,
+  QueryClientProvider,
+} from '@tanstack/react-query'
+import { RouterProvider, createRouter } from '@tanstack/react-router'
+import i18next from 'i18next'
+import { toast } from 'sonner'
+import { useAuthStore } from '@/stores/auth-store'
+import { getStatus } from '@/lib/api'
+import { installBuildMetadata } from '@/lib/build-metadata'
+import '@/lib/dayjs'
+import { applyFaviconToDom } from '@/lib/dom-utils'
+import { initializeFrontendCache } from '@/lib/frontend-cache'
+import { handleServerError } from '@/lib/handle-server-error'
+import { DirectionProvider } from './context/direction-provider'
+import { FontProvider } from './context/font-provider'
+import { ThemeProvider } from './context/theme-provider'
+import './i18n/config'
+// Generated Routes
+import { routeTree } from './routeTree.gen'
+// Styles
+import './styles/index.css'
+import * as Sentry from "@sentry/react";
+
+Sentry.init({
+  dsn: "https://163f8d10caa2f8ae225919cd8daebaa5@sentry.silveridc.cn/12",
+  // Setting this option to true will send default PII data to Sentry.
+  // For example, automatic IP address collection on events
+  sendDefaultPii: true,
+  integrations: [
+    Sentry.browserTracingIntegration(),
+    //Sentry.replayIntegration()
+  ],
+  // Tracing
+  tracesSampleRate: 1.0, //  Capture 100% of the transactions
+  // Set 'tracePropagationTargets' to control for which URLs distributed tracing should be enabled
+  /*replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1.0,*/
+  enableLogs: true,
+
+  beforeSend(event, hint) {
+    const error = hint.originalException;
+
+    // 1. 拦截 Axios 抛出的 401 错误
+    if (error && error.isAxiosError && error.response?.status === 401) {
+      return null; // 返回 null 意味着不上报该错误
+    }
+
+    // 2. 补充防范：某些情况下 status 挂在根对象或 response 上
+    if (error?.status === 401 || error?.statusCode === 401) {
+      return null;
+    }
+
+    return event;
+  },
+});
+
+// Ensure VChart theme is initialized before any chart mounts (prevents white default theme flash)
+// VChart theme is driven by our ThemeProvider (html.light/html.dark) via per-chart `theme` prop.
+initializeFrontendCache()
+installBuildMetadata()
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: (failureCount, error) => {
+        // eslint-disable-next-line no-console
+        if (import.meta.env.DEV) console.log({ failureCount, error })
+
+        if (failureCount >= 0 && import.meta.env.DEV) return false
+        if (failureCount > 3 && import.meta.env.PROD) return false
+
+        return !(
+          error instanceof AxiosError &&
+          [401, 403].includes(error.response?.status ?? 0)
+        )
+      },
+      refetchOnWindowFocus: import.meta.env.PROD,
+      staleTime: 10 * 1000, // 10s
+    },
+    mutations: {
+      onError: (error) => {
+        handleServerError(error)
+
+        if (error instanceof AxiosError) {
+          if (error.response?.status === 304) {
+            toast.error(i18next.t('Content not modified!'))
+          }
+        }
+      },
+    },
+  },
+  queryCache: new QueryCache({
+    onError: (error) => {
+      if (error instanceof AxiosError) {
+        if (error.response?.status === 401) {
+          toast.error(i18next.t('Session expired!'))
+          useAuthStore.getState().auth.reset()
+          const redirect = `${router.history.location.href}`
+          router.navigate({ to: '/sign-in', search: { redirect } })
+        }
+        if (error.response?.status === 500) {
+          toast.error(i18next.t('Internal Server Error!'))
+          router.navigate({ to: '/500' })
+        }
+      }
+    },
+  }),
+})
+
+// Create a new router instance
+const router = createRouter({
+  routeTree,
+  context: { queryClient },
+  defaultPreload: 'intent',
+  defaultPreloadStaleTime: 0,
+})
+
+// Register the router instance for type safety
+declare module '@tanstack/react-router' {
+  interface Register {
+    router: typeof router
+  }
+}
+
+// Render the app
+const rootElement = document.getElementById('root')!
+// Set document.title and favicon from cached status, then refresh from network
+;(function initSystemBranding() {
+  try {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return
+    const apply = (name: string) => {
+      document.title = name
+      const metaTitle = document.querySelector(
+        'meta[name="title"]'
+      ) as HTMLMetaElement | null
+      if (metaTitle) metaTitle.setAttribute('content', name)
+    }
+    // Cache-first
+    try {
+      const saved = localStorage.getItem('status')
+      if (saved) {
+        const s = JSON.parse(saved)
+        if (s?.system_name) apply(s.system_name)
+        if (s?.logo) applyFaviconToDom(s.logo)
+      }
+    } catch {
+      /* empty */
+    }
+    // Background refresh
+    getStatus()
+      .then((s) => {
+        if (s?.system_name) {
+          apply(s.system_name as string)
+          try {
+            localStorage.setItem('status', JSON.stringify(s))
+          } catch {
+            /* empty */
+          }
+        }
+        if (s?.logo) applyFaviconToDom(s.logo as string)
+      })
+      .catch(() => {
+        /* empty */
+      })
+  } catch {
+    /* empty */
+  }
+})()
+if (!rootElement.innerHTML) {
+  const root = ReactDOM.createRoot(rootElement)
+  root.render(
+    <StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <FontProvider>
+            <DirectionProvider>
+              <RouterProvider router={router} />
+            </DirectionProvider>
+          </FontProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </StrictMode>
+  )
+}
