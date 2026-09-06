@@ -27,6 +27,8 @@ import '@/lib/dayjs'
 import { initializeFrontendCache } from '@/lib/frontend-cache'
 import { createAppQueryClient } from '@/lib/query-client'
 import { readCachedStatus, statusQueryOptions } from '@/lib/status-query'
+// zhaoyj add: Sentry
+import { initSentry } from '@/lib/sentry'
 
 import { DirectionProvider } from './context/direction-provider'
 import { FontProvider } from './context/font-provider'
@@ -61,6 +63,9 @@ declare module '@tanstack/react-router' {
     router: typeof router
   }
 }
+
+// zhaoyj add: Sentry
+initSentry(router)
 
 // Render the app
 const rootElement = document.querySelector<HTMLElement>('#root')
