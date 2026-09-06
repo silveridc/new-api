@@ -7,13 +7,18 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/getsentry/sentry-go"
+	sentrygin "github.com/getsentry/sentry-go/gin"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
@@ -47,6 +52,9 @@ var buildFS embed.FS
 //go:embed web/dist/index.html
 var indexPage []byte
 
+// zhaoyj add: sentry
+var sentryEnabled bool
+
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "plugin" {
 		os.Exit(jsplugin.RunCLI(os.Args[2:], os.Stdout, os.Stderr))
@@ -69,6 +77,13 @@ func main() {
 	}
 	if common.DebugEnabled {
 		common.SysLog("running in debug mode")
+	}
+
+	// zhaoyj add: sentry
+	if err := initSentry(); err != nil {
+		common.SysError(fmt.Sprintf("Sentry initialization failed: %v", err))
+	} else if sentryEnabled {
+		defer sentry.Flush(2 * time.Second)
 	}
 
 	kitutil.Debug.Store(common.DebugEnabled)
@@ -179,6 +194,8 @@ func main() {
 
 	// Initialize HTTP server
 	server := gin.New()
+	// zhaoyj add: Sentry middleware, must be before Recovery
+	server.Use(sentrygin.New(sentrygin.Options{Repanic: true}))
 	if err := middleware.ConfigureTrustedProxies(server); err != nil {
 		common.FatalLog("failed to configure trusted proxies: " + err.Error())
 		return
@@ -216,15 +233,42 @@ func main() {
 		Handler: server,
 	}
 
+	// zhaoyj add: support listening on a Unix domain socket instead of a TCP port
+	listenAddr := os.Getenv("UNIX_SOCKET_PATH")
 	go func() {
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if listenAddr != "" {
+			if err := os.Remove(listenAddr); err != nil && !os.IsNotExist(err) {
+				common.SysError(fmt.Sprintf("failed to remove stale unix socket %s: %v", listenAddr, err))
+			}
+			parent := filepath.Dir(listenAddr)
+			if err := os.MkdirAll(parent, 0o755); err != nil {
+				common.FatalLog("failed to create unix socket directory: " + err.Error())
+				return
+			}
+			ln, err := net.Listen("unix", listenAddr)
+			if err != nil {
+				common.FatalLog("failed to listen on unix socket: " + err.Error())
+				return
+			}
+			if err := os.Chmod(listenAddr, 0o660); err != nil {
+				common.SysError(fmt.Sprintf("failed to chmod unix socket %s: %v", listenAddr, err))
+			}
+			common.SysLog("listening on unix socket: " + listenAddr)
+			if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				common.FatalLog("failed to serve unix socket: " + err.Error())
+			}
+		} else if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			common.FatalLog("failed to start HTTP server: " + err.Error())
 		}
 	}()
 
 	time.Sleep(100 * time.Millisecond)
 
-	common.LogStartupSuccess(startTime, port)
+	if listenAddr == "" {
+		common.LogStartupSuccess(startTime, port)
+	} else {
+		common.SysLog(fmt.Sprintf("startup completed in %d ms", time.Since(startTime).Milliseconds()))
+	}
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
@@ -242,7 +286,32 @@ func main() {
 	if common.DataExportEnabled {
 		model.SaveQuotaDataCache()
 	}
+	if listenAddr != "" {
+		// zhaoyj add: remove the unix socket file on shutdown
+		if err := os.Remove(listenAddr); err != nil && !os.IsNotExist(err) {
+			common.SysError(fmt.Sprintf("failed to remove unix socket %s: %v", listenAddr, err))
+		}
+	}
 	common.SysLog("server exited")
+}
+
+// zhaoyj add: sentry
+func initSentry() error {
+	dsn := os.Getenv("SENTRY_DSN")
+	if dsn == "" {
+		common.SysLog("SENTRY_DSN not set, skipping Sentry initialization")
+		sentryEnabled = false
+		return nil
+	}
+	sentryEnabled = true
+	return sentry.Init(sentry.ClientOptions{
+		Dsn:              dsn,
+		Release:          "new-api@" + common.Version,
+		EnableTracing:    true,
+		TracesSampleRate: 1.0,
+		SendDefaultPII:   true,
+		Debug:            os.Getenv("SENTRY_DEBUG") == "true",
+	})
 }
 
 func InjectUmamiAnalytics() {
