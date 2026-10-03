@@ -195,6 +195,8 @@ func InitDB() (err error) {
 			db = db.Debug()
 		}
 		DB = db
+		// zhaoyj add: OpenTelemetry SQL 埋点
+		registerOTelGormTracing(DB)
 		// MySQL charset/collation startup check: ensure Chinese-capable charset
 		if common.UsingMainDatabase(common.DatabaseTypeMySQL) {
 			if err := checkMySQLChineseSupport(DB); err != nil {
@@ -245,6 +247,8 @@ func InitLogDB() (err error) {
 			db = db.Debug()
 		}
 		LOG_DB = db
+		// zhaoyj add: OpenTelemetry SQL 埋点（独立日志库；与主库共用时已在 InitDB 注册，不重复）
+		registerOTelGormTracing(LOG_DB)
 		// If log DB is MySQL, also ensure Chinese-capable charset
 		if common.UsingLogDatabase(common.DatabaseTypeMySQL) {
 			if err := checkMySQLChineseSupport(LOG_DB); err != nil {

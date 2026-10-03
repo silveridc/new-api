@@ -20,20 +20,19 @@ For commercial licensing, please contact support@quantumnous.com
 import { init, tanstackRouterBrowserTracingIntegration } from '@sentry/react'
 
 export let sentryInitialized = false
+const DEFAULT_SENTRY_DSN =
+  'https://163f8d10caa2f8ae225919cd8daebaa5@sentry.silveridc.cn/12'
 
+const envDsn = import.meta.env.VITE_SENTRY_DSN
 const dsn =
-  typeof import.meta.env.VITE_SENTRY_DSN === 'string'
-    ? import.meta.env.VITE_SENTRY_DSN
-    : ''
+  typeof envDsn === 'string' && envDsn !== '' ? envDsn : DEFAULT_SENTRY_DSN
 
 // router passes through as any — matches @sentry/react's own tanstackRouterBrowserTracingIntegration
 export function initSentry(router?: unknown): void {
   if (!dsn) {
     if (import.meta.env.DEV) {
       // eslint-disable-next-line no-console
-      console.warn(
-        'VITE_SENTRY_DSN is not set, skipping Sentry initialization'
-      )
+      console.warn('VITE_SENTRY_DSN is not set, skipping Sentry initialization')
     }
     sentryInitialized = false
     return

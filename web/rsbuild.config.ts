@@ -53,6 +53,10 @@ export default defineConfig(({ envMode }) => {
       },
     },
     source: {
+      // zhaoyj fix: 把 VITE_ 前缀的环境变量注入到 import.meta.env，否则 VITE_SENTRY_DSN /
+      // VITE_REACT_APP_VERSION 等在打包后恒为 undefined（rsbuild 默认只自动注入 PUBLIC_ 前缀）。
+      // publicVars 同时覆盖 .env 文件与命令行传入（VITE_SENTRY_DSN=... bun run build）。
+      define: env.publicVars,
       entry: {
         index: './src/main.tsx',
       },

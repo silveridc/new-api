@@ -19,6 +19,7 @@ import (
 
 	"github.com/getsentry/sentry-go"
 	sentrygin "github.com/getsentry/sentry-go/gin"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
@@ -30,6 +31,7 @@ import (
 	"github.com/QuantumNous/new-api/oauth"
 	"github.com/QuantumNous/new-api/pkg/jsplugin"
 	perfmetrics "github.com/QuantumNous/new-api/pkg/perf_metrics"
+	"github.com/QuantumNous/new-api/pkg/tracing"
 	"github.com/QuantumNous/new-api/pkg/wsmanager"
 	"github.com/QuantumNous/new-api/relay"
 	kitutil "github.com/QuantumNous/new-api/relaykit/relayconvert/kitutil"
@@ -54,6 +56,9 @@ var indexPage []byte
 
 // zhaoyj add: sentry
 var sentryEnabled bool
+
+// zhaoyj add: OpenTelemetry tracing 的 flush/shutdown 回调，在退出时调用
+var otelShutdown func(context.Context) error
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "plugin" {
@@ -84,6 +89,17 @@ func main() {
 		common.SysError(fmt.Sprintf("Sentry initialization failed: %v", err))
 	} else if sentryEnabled {
 		defer sentry.Flush(2 * time.Second)
+	}
+
+	// zhaoyj add: OpenTelemetry tracing，退出时 flush
+	if otelShutdown != nil {
+		defer func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := otelShutdown(ctx); err != nil {
+				common.SysError(fmt.Sprintf("OpenTelemetry shutdown error: %v", err))
+			}
+		}()
 	}
 
 	kitutil.Debug.Store(common.DebugEnabled)
@@ -196,6 +212,8 @@ func main() {
 	server := gin.New()
 	// zhaoyj add: Sentry middleware, must be before Recovery
 	server.Use(sentrygin.New(sentrygin.Options{Repanic: true}))
+	// zhaoyj add: OpenTelemetry HTTP 追踪（官方 otelgin），靠外层以包住整个请求
+	server.Use(otelgin.Middleware("new-api"))
 	if err := middleware.ConfigureTrustedProxies(server); err != nil {
 		common.FatalLog("failed to configure trusted proxies: " + err.Error())
 		return
@@ -304,13 +322,14 @@ func initSentry() error {
 		return nil
 	}
 	sentryEnabled = true
+	// 追踪交给 OpenTelemetry（见 pkg/tracing）；sentry-go 只负责错误/panic 上报，
+	// 因此关闭其自带的 transaction 追踪，避免与 OTel 重复上报 HTTP trace。
 	return sentry.Init(sentry.ClientOptions{
-		Dsn:              dsn,
-		Release:          "new-api@" + common.Version,
-		EnableTracing:    true,
-		TracesSampleRate: 1.0,
-		SendDefaultPII:   true,
-		Debug:            os.Getenv("SENTRY_DEBUG") == "true",
+		Dsn:            dsn,
+		Release:        "new-api@" + common.Version,
+		EnableTracing:  false,
+		SendDefaultPII: true,
+		Debug:          os.Getenv("SENTRY_DEBUG") == "true",
 	})
 }
 
@@ -371,6 +390,14 @@ func InitResources() error {
 	common.InitEnv()
 
 	logger.SetupLogger()
+
+	// zhaoyj add: 初始化 OpenTelemetry 追踪，须在 model.InitDB 注册 GORM 埋点之前
+	shutdown, err := tracing.InitTracing(context.Background())
+	if err != nil {
+		common.SysError("failed to initialize OpenTelemetry tracing: " + err.Error())
+	} else {
+		otelShutdown = shutdown
+	}
 
 	// Initialize model settings
 	ratio_setting.InitRatioSettings()
