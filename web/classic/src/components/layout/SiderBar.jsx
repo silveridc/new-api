@@ -21,7 +21,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getLucideIcon } from '../../helpers/render';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Puzzle, ScrollText } from 'lucide-react';
 import { useSidebarCollapsed } from '../../hooks/common/useSidebarCollapsed';
 import { useSidebar } from '../../hooks/common/useSidebar';
 import { useMinimumLoadingTime } from '../../hooks/common/useMinimumLoadingTime';
@@ -29,6 +29,31 @@ import { isAdmin, isRoot, showError } from '../../helpers';
 import SkeletonWrapper from './components/SkeletonWrapper';
 
 import { Nav, Divider, Button } from '@douyinfe/semi-ui';
+
+// 新增页面的本地图标映射（避免改动 helpers/render.jsx）
+const LOCAL_ICONS = {
+  taskPlugins: Puzzle,
+  audit: ScrollText,
+};
+
+function getMenuItemIcon(key, selected) {
+  const LocalIcon = LOCAL_ICONS[key];
+  if (LocalIcon) {
+    const size = 16;
+    const iconColor = selected
+      ? 'var(--semi-color-primary)'
+      : 'currentColor';
+    return (
+      <LocalIcon
+        size={size}
+        strokeWidth={2}
+        color={iconColor}
+        className={`transition-colors duration-200 ${selected ? 'scale-105' : ''}`}
+      />
+    );
+  }
+  return getLucideIcon(key, selected);
+}
 
 const routerMap = {
   home: '/',
@@ -45,6 +70,8 @@ const routerMap = {
   detail: '/console',
   pricing: '/pricing',
   task: '/console/task',
+  taskPlugins: '/console/task-plugins',
+  audit: '/console/audit',
   models: '/console/models',
   deployment: '/console/deployment',
   playground: '/console/playground',
@@ -181,6 +208,18 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         text: t('用户管理'),
         itemKey: 'user',
         to: '/user',
+        className: isAdmin() ? '' : 'tableHiddle',
+      },
+      {
+        text: t('任务插件'),
+        itemKey: 'taskPlugins',
+        to: '/console/task-plugins',
+        className: isAdmin() ? '' : 'tableHiddle',
+      },
+      {
+        text: t('审计日志'),
+        itemKey: 'audit',
+        to: '/console/audit',
         className: isAdmin() ? '' : 'tableHiddle',
       },
       {
@@ -332,7 +371,7 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         }
         icon={
           <div className='sidebar-icon-container flex-shrink-0'>
-            {getLucideIcon(item.itemKey, isSelected)}
+            {getMenuItemIcon(item.itemKey, isSelected)}
           </div>
         }
         className={item.className}

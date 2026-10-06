@@ -241,6 +241,7 @@ export const getTaskLogsColumns = ({
   isAdminUser,
   openVideoModal,
   openAudioModal,
+  openArtifactsModal,
 }) => {
   return [
     {
@@ -378,6 +379,35 @@ export const getTaskLogsColumns = ({
               />
             )}
           </div>
+        );
+      },
+    },
+    {
+      key: COLUMN_KEYS.ARTIFACTS,
+      title: t('产物'),
+      dataIndex: 'task_id',
+      render: (text, record) => {
+        // 结果已在 API 响应中直接返回且未持久化
+        if (record.status === 'SUCCESS' && record.result_discarded === true) {
+          return (
+            <Tooltip content={t('结果已在响应中返回，未保存为产物')}>
+              <span className='text-[var(--semi-color-text-2)] text-xs'>
+                {t('结果未保留')}
+              </span>
+            </Tooltip>
+          );
+        }
+        if (record.status !== 'SUCCESS') return '-';
+        return (
+          <a
+            href='#'
+            onClick={(e) => {
+              e.preventDefault();
+              openArtifactsModal?.(record.task_id);
+            }}
+          >
+            {t('查看产物')}
+          </a>
         );
       },
     },

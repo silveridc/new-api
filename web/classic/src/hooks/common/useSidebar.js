@@ -52,6 +52,8 @@ export const DEFAULT_ADMIN_CONFIG = {
     redemption: true,
     user: true,
     subscription: true,
+    taskPlugins: true,
+    audit: true,
     setting: true,
   },
 };

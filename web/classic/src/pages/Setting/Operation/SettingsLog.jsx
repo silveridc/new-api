@@ -22,6 +22,7 @@ import {
   Button,
   Col,
   Form,
+  Progress,
   Row,
   Spin,
   DatePicker,
@@ -40,16 +41,82 @@ import {
 
 const { Text } = Typography;
 
+const LOG_CLEANUP_TASK_TYPE = 'log_cleanup';
+const LOG_CLEANUP_ACTIVE_STATUSES = ['pending', 'running'];
+
+function isActiveLogCleanupTask(task) {
+  return (
+    !!task && LOG_CLEANUP_ACTIVE_STATUSES.includes(String(task.status || ''))
+  );
+}
+
 export default function SettingsLog(props) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [loadingCleanHistoryLog, setLoadingCleanHistoryLog] = useState(false);
+  const [cleanupTask, setCleanupTask] = useState(null);
   const [inputs, setInputs] = useState({
     LogConsumeEnabled: false,
     historyTimestamp: dayjs().subtract(1, 'month').toDate(),
   });
   const refForm = useRef();
   const [inputsRow, setInputsRow] = useState(inputs);
+
+  // 挂载时检查是否已有进行中的清理任务，恢复进度条
+  useEffect(() => {
+    let cancelled = false;
+    API.get('/api/system-task/current', {
+      params: { type: LOG_CLEANUP_TASK_TYPE },
+    })
+      .then((res) => {
+        if (cancelled) return;
+        if (res.data?.success && res.data?.data) {
+          setCleanupTask(res.data.data);
+        }
+      })
+      .catch(() => {
+        // 后端不可用或无任务，忽略
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // 有活动任务时每秒轮询进度，结束后展示结果
+  useEffect(() => {
+    if (!cleanupTask || !isActiveLogCleanupTask(cleanupTask)) return undefined;
+    const taskId = cleanupTask.task_id;
+    const interval = setInterval(async () => {
+      try {
+        const res = await API.get(`/api/system-task/${taskId}`);
+        if (!res.data?.success || !res.data?.data) return;
+        const task = res.data.data;
+        setCleanupTask(task);
+        if (!isActiveLogCleanupTask(task)) {
+          if (task.status === 'succeeded') {
+            const count = task.result?.deleted_count ?? task.state?.processed ?? 0;
+            showSuccess(
+              count > 0
+                ? `${count} ${t('条日志已清理！')}`
+                : t('没有匹配所选时间的日志'),
+            );
+          } else if (task.status === 'failed') {
+            showError(t('日志清理失败：') + (task.error || ''));
+          }
+        }
+      } catch {
+        // 保持轮询，网络抖动时忽略
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [cleanupTask, t]);
+
+  const cleanupProgress = cleanupTask
+    ? Math.min(100, Math.max(0, cleanupTask.state?.progress ?? 0))
+    : 0;
+  const cleanupProcessed = cleanupTask?.state?.processed ?? 0;
+  const cleanupTotal = cleanupTask?.state?.total ?? 0;
+  const cleanupActive = isActiveLogCleanupTask(cleanupTask);
 
   function onSubmit() {
     const updateArray = compareObjects(inputs, inputsRow).filter(
@@ -160,18 +227,22 @@ export default function SettingsLog(props) {
       onOk: async () => {
         try {
           setLoadingCleanHistoryLog(true);
-          const res = await API.delete(
-            `/api/log/?target_timestamp=${Date.parse(inputs.historyTimestamp) / 1000}`,
-          );
+          // 新版改为异步系统任务：提交后轮询 /api/system-task/:task_id 展示进度
+          const res = await API.post('/api/system-task/log-cleanup', null, {
+            params: {
+              target_timestamp:
+                Date.parse(inputs.historyTimestamp) / 1000,
+            },
+          });
           const { success, message, data } = res.data;
-          if (success) {
-            showSuccess(`${data} ${t('条日志已清理！')}`);
-            return;
-          } else {
+          if (!success || !data) {
             throw new Error(t('日志清理失败：') + message);
           }
+          setCleanupTask(data);
+          showSuccess(t('日志清理任务已开始'));
         } catch (error) {
           showError(error.message);
+          throw error;
         } finally {
           setLoadingCleanHistoryLog(false);
         }
@@ -241,12 +312,39 @@ export default function SettingsLog(props) {
                     size='default'
                     type='danger'
                     onClick={onCleanHistoryLog}
+                    disabled={cleanupActive}
                   >
                     {t('清除历史日志')}
                   </Button>
                 </Spin>
               </Col>
             </Row>
+
+            {cleanupTask && (
+              <Row>
+                <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                  <Text strong style={{ display: 'block', marginBottom: 4 }}>
+                    {cleanupActive
+                      ? t('日志清理进行中')
+                      : cleanupTask.status === 'succeeded'
+                        ? t('日志清理已完成')
+                        : t('日志清理失败')}
+                  </Text>
+                  <Progress
+                    percent={cleanupProgress}
+                    showInfo
+                    stroke={cleanupTask.status === 'failed' ? 'var(--semi-color-danger)' : undefined}
+                  />
+                  <Text type='tertiary' size='small' style={{ display: 'block', marginTop: 4 }}>
+                    {cleanupActive
+                      ? `${cleanupProcessed} / ${cleanupTotal}`
+                      : cleanupTask.status === 'succeeded'
+                        ? `${t('已删除')} ${cleanupTask.result?.deleted_count ?? cleanupProcessed} ${t('条日志')}`
+                        : cleanupTask.error || ''}
+                  </Text>
+                </Col>
+              </Row>
+            )}
 
             <Row>
               <Button size='default' onClick={onSubmit}>

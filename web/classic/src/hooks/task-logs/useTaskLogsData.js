@@ -48,6 +48,7 @@ export const useTaskLogsData = () => {
     PROGRESS: 'progress',
     FAIL_REASON: 'fail_reason',
     RESULT_URL: 'result_url',
+    ARTIFACTS: 'artifacts',
   };
 
   // Basic state
@@ -75,6 +76,10 @@ export const useTaskLogsData = () => {
   // Audio preview modal state
   const [isAudioModalOpen, setIsAudioModalOpen] = useState(false);
   const [audioClips, setAudioClips] = useState([]);
+
+  // 任务产物（/api/task/:task_id/artifacts）弹窗状态
+  const [isArtifactsModalOpen, setIsArtifactsModalOpen] = useState(false);
+  const [artifactsTaskId, setArtifactsTaskId] = useState('');
 
   // User info modal state
   const [showUserInfo, setShowUserInfoModal] = useState(false);
@@ -140,6 +145,7 @@ export const useTaskLogsData = () => {
       [COLUMN_KEYS.PROGRESS]: true,
       [COLUMN_KEYS.FAIL_REASON]: true,
       [COLUMN_KEYS.RESULT_URL]: true,
+      [COLUMN_KEYS.ARTIFACTS]: true,
     };
   };
 
@@ -286,6 +292,12 @@ export const useTaskLogsData = () => {
     setIsAudioModalOpen(true);
   };
 
+  // 任务产物弹窗：SUCCESS 且结果未丢弃的任务才可查看
+  const openArtifactsModal = (taskId) => {
+    setArtifactsTaskId(taskId);
+    setIsArtifactsModalOpen(true);
+  };
+
   // User info function
   const showUserInfoFunc = async (userId) => {
     if (!isAdminUser) {
@@ -332,6 +344,12 @@ export const useTaskLogsData = () => {
     isAudioModalOpen,
     setIsAudioModalOpen,
     audioClips,
+
+    // 任务产物弹窗
+    isArtifactsModalOpen,
+    setIsArtifactsModalOpen,
+    artifactsTaskId,
+    openArtifactsModal,
 
     // Form state
     formApi,

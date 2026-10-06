@@ -41,6 +41,9 @@ import Chat2Link from './pages/Chat2Link';
 import Midjourney from './pages/Midjourney';
 import Pricing from './pages/Pricing';
 import Task from './pages/Task';
+// 新增：任务插件管理页、审计页（lazy 路由）
+const TaskPlugins = lazy(() => import('./pages/TaskPlugins'));
+const Audit = lazy(() => import('./pages/Audit'));
 import ModelPage from './pages/Model';
 import ModelDeploymentPage from './pages/ModelDeployment';
 import Playground from './pages/Playground';
@@ -315,6 +318,10 @@ function App() {
             </PrivateRoute>
           }
         />
+        {/* 新增：任务插件管理页（管理员） */}
+        <Route path='/console/task-plugins' element={<AdminRoute><Suspense fallback={<Loading></Loading>} key={location.pathname}><TaskPlugins /></Suspense></AdminRoute>} />
+        {/* 新增：审计页（self 视角对所有登录用户开放） */}
+        <Route path='/console/audit' element={<PrivateRoute><Suspense fallback={<Loading></Loading>} key={location.pathname}><Audit /></Suspense></PrivateRoute>} />
         <Route
           path='/pricing'
           element={

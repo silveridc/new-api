@@ -26,6 +26,7 @@ import TaskLogsFilters from './TaskLogsFilters';
 import ColumnSelectorModal from './modals/ColumnSelectorModal';
 import ContentModal from './modals/ContentModal';
 import AudioPreviewModal from './modals/AudioPreviewModal';
+import ArtifactsModal from './modals/ArtifactsModal';
 import { useTaskLogsData } from '../../../hooks/task-logs/useTaskLogsData';
 import { useIsMobile } from '../../../hooks/common/useIsMobile';
 import { createCardProPagination } from '../../../helpers/utils';
@@ -50,6 +51,12 @@ const TaskLogsPage = () => {
         isModalOpen={taskLogsData.isAudioModalOpen}
         setIsModalOpen={taskLogsData.setIsAudioModalOpen}
         audioClips={taskLogsData.audioClips}
+      />
+      {/* 任务产物（视频/音频/图片）弹窗 */}
+      <ArtifactsModal
+        isModalOpen={taskLogsData.isArtifactsModalOpen}
+        setIsModalOpen={taskLogsData.setIsArtifactsModalOpen}
+        taskId={taskLogsData.artifactsTaskId}
       />
 
       <Layout>
