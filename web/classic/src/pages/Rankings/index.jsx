@@ -155,7 +155,7 @@ export default function Rankings() {
     <Select
       value={period}
       onChange={(value) => setPeriod(value)}
-      optionList={RANKING_PERIODS}
+      optionList={RANKING_PERIODS.map((p) => ({ ...p, label: t(p.label) }))}
       style={{ width: 140 }}
       aria-label={t('时间范围')}
     />

@@ -292,7 +292,10 @@ export default function Performance() {
             <Select
               value={hours}
               onChange={(value) => setHours(value)}
-              optionList={PERF_HOURS_OPTIONS}
+              optionList={PERF_HOURS_OPTIONS.map((o) => ({
+                ...o,
+                label: t(o.label),
+              }))}
               style={{ width: 140 }}
               aria-label={t('时间范围')}
             />

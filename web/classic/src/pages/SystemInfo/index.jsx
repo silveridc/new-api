@@ -328,7 +328,7 @@ function TasksPanel() {
       dataIndex: 'type_label',
       render: (text, record) => (
         <div>
-          <Text strong>{text}</Text>
+          <Text strong>{t(text)}</Text>
           <div>
             <Text type='tertiary' size='small' copyable={{ content: record.task_id }}>
               {record.task_id}
@@ -388,7 +388,7 @@ function TasksPanel() {
     return [
       ...Array.from(types).map((type) => ({
         value: type,
-        label: systemTaskTypeLabel(type),
+        label: t(systemTaskTypeLabel(type)),
       })),
     ];
   }, [historyTasks]);
@@ -439,7 +439,10 @@ function TasksPanel() {
             <Select
               placeholder={t('状态')}
               value={filters.status || undefined}
-              optionList={SYSTEM_TASK_STATUS_OPTIONS}
+              optionList={SYSTEM_TASK_STATUS_OPTIONS.map((o) => ({
+                ...o,
+                label: t(o.label),
+              }))}
               style={{ width: 140 }}
               showClear
               onChange={(value) =>
