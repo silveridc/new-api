@@ -80,11 +80,9 @@ export default defineConfig({
             'react-toastify',
             'react-turnstile',
           ],
-          i18n: [
-            'i18next',
-            'react-i18next',
-            'i18next-browser-languagedetector',
-          ],
+          // i18n 不再单独分组：babel 共享辅助模块会同时落进 semi-ui 与
+          // i18n 两个手动 chunk，形成 "Circular chunk: semi-ui -> i18n
+          // -> semi-ui" 循环。让 i18next 系列跟随引用它的 chunk 自然分包。
         },
       },
     },
