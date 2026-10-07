@@ -282,11 +282,13 @@ func RecordErrorLog(c *gin.Context, userId int, channelId int, modelName string,
 	requestId := c.GetString(common.RequestIdKey)
 	upstreamRequestId := c.GetString(common.UpstreamRequestIdKey)
 	otherStr := other.JSONString()
-	// 判断是否需要记录 IP
-	needRecordIp := false
-	if settingMap, err := GetUserSetting(userId, false); err == nil {
-		if settingMap.RecordIpLog {
-			needRecordIp = true
+	// 判断是否需要记录 IP：管理员全局开关强制记录，否则跟随用户自身设置
+	needRecordIp := common.RecordIpLogEnabled
+	if !needRecordIp {
+		if settingMap, err := GetUserSetting(userId, false); err == nil {
+			if settingMap.RecordIpLog {
+				needRecordIp = true
+			}
 		}
 	}
 	log := &Log{
@@ -346,11 +348,13 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 	upstreamRequestId := c.GetString(common.UpstreamRequestIdKey)
 	createdAt := common.GetTimestamp()
 	otherStr := params.Other.JSONString()
-	// 判断是否需要记录 IP
-	needRecordIp := false
-	if settingMap, err := GetUserSetting(userId, false); err == nil {
-		if settingMap.RecordIpLog {
-			needRecordIp = true
+	// 判断是否需要记录 IP：管理员全局开关强制记录，否则跟随用户自身设置
+	needRecordIp := common.RecordIpLogEnabled
+	if !needRecordIp {
+		if settingMap, err := GetUserSetting(userId, false); err == nil {
+			if settingMap.RecordIpLog {
+				needRecordIp = true
+			}
 		}
 	}
 	log := &Log{

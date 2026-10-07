@@ -57,6 +57,7 @@ export default function SettingsLog(props) {
   const [cleanupTask, setCleanupTask] = useState(null);
   const [inputs, setInputs] = useState({
     LogConsumeEnabled: false,
+    RecordIpLogEnabled: false,
     historyTimestamp: dayjs().subtract(1, 'month').toDate(),
   });
   const refForm = useRef();
@@ -283,6 +284,24 @@ export default function SettingsLog(props) {
                     setInputs({
                       ...inputs,
                       LogConsumeEnabled: value,
+                    });
+                  }}
+                />
+              </Col>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.Switch
+                  field={'RecordIpLogEnabled'}
+                  label={t('全局记录对话日志IP')}
+                  extraText={t(
+                    '开启后无论用户是否同意，消费与错误日志都会记录客户端IP（合规/风控用途），优先于用户个人设置',
+                  )}
+                  size='default'
+                  checkedText='｜'
+                  uncheckedText='〇'
+                  onChange={(value) => {
+                    setInputs({
+                      ...inputs,
+                      RecordIpLogEnabled: value,
                     });
                   }}
                 />

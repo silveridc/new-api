@@ -82,13 +82,11 @@ func authHelper(c *gin.Context, minRole int) {
 		setAccessTokenContext(c, lookup)
 	}
 
-	// 管理/root 写操作审计兜底：内聚在鉴权链路里，保证任何经过 AdminAuth/RootAuth
-	// 的写接口都会自动留痕（无需在路由上单独挂审计中间件，避免漏挂）。
+	// 已登录写操作审计兜底：内聚在鉴权链路里，保证任何经过鉴权的写接口
+	// （管理员与普通用户）都会自动留痕（无需在路由上单独挂审计中间件，避免漏挂）。
+	// beginAdminAudit 仅对 POST/PUT/PATCH/DELETE 生效，读请求返回 nil 直接跳过。
 	// handler 内手动埋点者会设置 ContextKeyAuditLogged，finishAdminAudit 据此跳过。
-	var auditWriter *auditResponseWriter
-	if minRole >= common.RoleAdminUser {
-		auditWriter = beginAdminAudit(c)
-	}
+	auditWriter := beginAdminAudit(c)
 
 	c.Next()
 

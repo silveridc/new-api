@@ -47,6 +47,17 @@ var auditRouteActions = map[string]string{
 	"DELETE /api/user/:id/reset_passkey":               "user.reset_passkey",
 	"DELETE /api/user/:id/oauth/bindings/:provider_id": "user.oauth_unbind",
 
+	// 用户自助写操作（普通用户，审计兜底覆盖所有已登录用户）
+	"PUT /api/user/self":                     "user.self_update",
+	"DELETE /api/user/self":                  "user.self_delete",
+	"PUT /api/user/setting":                  "user.setting_update",
+	"DELETE /api/user/sessions/:sid":         "session.revoke",
+	"POST /api/user/sessions/revoke-others":  "session.revoke_others",
+	"POST /api/verify":                       "security.verification",
+	"POST /api/user/topup":                   "user.topup",
+	"POST /api/user/passkey/register/finish": "user.passkey_register",
+	"DELETE /api/user/passkey":               "user.passkey_delete",
+
 	// 系统设置（root）
 	"POST /api/option/payment_compliance":       "option.payment_compliance",
 	"POST /api/option/rest_model_ratio":         "option.reset_ratio",
@@ -252,6 +263,8 @@ func TokenOperationAudit() gin.HandlerFunc {
 			entry.Success = entry.Status < 400 && common.GetContextKeyBool(c, constant.ContextKeyTokenAuditSucceeded)
 		}
 		model.RecordAuditLog(c, entry)
+		// 令牌操作已手动埋点，标记后 finishAdminAudit 跳过兜底，避免重复记录。
+		common.SetContextKey(c, constant.ContextKeyAuditLogged, true)
 	}
 }
 

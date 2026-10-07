@@ -93,6 +93,10 @@ var MemoryCacheEnabled bool
 
 var LogConsumeEnabled = true
 
+// RecordIpLogEnabled 为管理员全局开关：开启后无视用户自身的 record_ip_log
+// 设置，强制在消费/错误日志中记录客户端 IP（合规或风控场景使用）。
+var RecordIpLogEnabled = false
+
 var TLSInsecureSkipVerify bool
 var InsecureTLSConfig = &tls.Config{InsecureSkipVerify: true}
 
