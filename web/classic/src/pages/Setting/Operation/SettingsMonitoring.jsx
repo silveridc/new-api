@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Button, Col, Form, Row, Spin } from '@douyinfe/semi-ui';
+import { Button, Col, Form, Row, Spin, Typography } from '@douyinfe/semi-ui';
 import {
   compareObjects,
   API,
@@ -29,9 +29,20 @@ import {
 } from '../../../helpers';
 import { useTranslation } from 'react-i18next';
 import HttpStatusCodeRulesInput from '../../../components/settings/HttpStatusCodeRulesInput';
+import {
+  CHANNEL_TEST_MODES,
+  partitionOptionChanges,
+  saveRequestPolicyOptions,
+  isChannelTestMode,
+  normalizeChannelTestConcurrency,
+} from '../../../services/requestPolicy';
+
+const KEY_TEST_MODE = 'monitor_setting.channel_test_mode';
+const KEY_TEST_CONCURRENCY = 'monitor_setting.channel_test_concurrency';
 
 export default function SettingsMonitoring(props) {
   const { t } = useTranslation();
+  const { Text } = Typography;
   const [loading, setLoading] = useState(false);
   const [inputs, setInputs] = useState({
     ChannelDisableThreshold: '',
@@ -44,6 +55,8 @@ export default function SettingsMonitoring(props) {
       '100-199,300-399,401-407,409-499,500-503,505-523,525-599',
     'monitor_setting.auto_test_channel_enabled': false,
     'monitor_setting.auto_test_channel_minutes': 10,
+    [KEY_TEST_MODE]: 'scheduled_all',
+    [KEY_TEST_CONCURRENCY]: 1,
   });
   const refForm = useRef();
   const [inputsRow, setInputsRow] = useState(inputs);
@@ -73,36 +86,58 @@ export default function SettingsMonitoring(props) {
           : '';
       return showError(`${t('自动重试状态码格式不正确')}${details}`);
     }
-    const requestQueue = updateArray.map((item) => {
-      let value = '';
-      if (typeof inputs[item.key] === 'boolean') {
-        value = String(inputs[item.key]);
+    if (
+      updateArray.some((item) => item.key === KEY_TEST_MODE) &&
+      !isChannelTestMode(inputs[KEY_TEST_MODE])
+    ) {
+      return showError(t('渠道测试模式不正确'));
+    }
+
+    const optionEntries = {};
+    for (const item of updateArray) {
+      if (item.key === KEY_TEST_CONCURRENCY) {
+        optionEntries[item.key] = String(
+          normalizeChannelTestConcurrency(inputs[item.key]),
+        );
+      } else if (typeof inputs[item.key] === 'boolean') {
+        optionEntries[item.key] = String(inputs[item.key]);
       } else {
         const normalizedMap = {
           AutomaticDisableStatusCodes: parsedAutoDisableStatusCodes.normalized,
           AutomaticRetryStatusCodes: parsedAutoRetryStatusCodes.normalized,
         };
-        value = normalizedMap[item.key] ?? inputs[item.key];
+        optionEntries[item.key] = normalizedMap[item.key] ?? inputs[item.key];
       }
-      return API.put('/api/option/', {
-        key: item.key,
-        value,
-      });
-    });
+    }
+
+    // 保存契约：请求策略 key（含 monitor_setting.*、自动禁用/重试标量，
+    // 见 model/request_policy.go IsRequestPolicyOption）走原子 PATCH
+    // /api/option/request_policy（router/api-router.go:217）；其余
+    // （如 QuotaRemindThreshold）保持 PUT /api/option/。
+    const { policy, legacy } = partitionOptionChanges(optionEntries);
+
+    const tasks = [];
+    if (Object.keys(policy).length > 0) {
+      tasks.push(() => saveRequestPolicyOptions(policy));
+    }
+    for (const [key, value] of Object.entries(legacy)) {
+      tasks.push(() => API.put('/api/option/', { key, value }));
+    }
+
     setLoading(true);
-    Promise.all(requestQueue)
+    Promise.all(tasks.map((task) => task()))
       .then((res) => {
-        if (requestQueue.length === 1) {
+        if (tasks.length === 1) {
           if (res.includes(undefined)) return;
-        } else if (requestQueue.length > 1) {
+        } else if (tasks.length > 1) {
           if (res.includes(undefined))
             return showError(t('部分保存失败，请重试'));
         }
         showSuccess(t('保存成功'));
         props.refresh();
       })
-      .catch(() => {
-        showError(t('保存失败，请重试'));
+      .catch((error) => {
+        showError(error?.message || t('保存失败，请重试'));
       })
       .finally(() => {
         setLoading(false);
@@ -115,6 +150,11 @@ export default function SettingsMonitoring(props) {
       if (Object.keys(inputs).includes(key)) {
         currentInputs[key] = props.options[key];
       }
+    }
+    // 数值型字段需要转成 number 供 InputNumber 展示
+    if (KEY_TEST_CONCURRENCY in currentInputs) {
+      currentInputs[KEY_TEST_CONCURRENCY] =
+        Number(currentInputs[KEY_TEST_CONCURRENCY]) || 1;
     }
     setInputs(currentInputs);
     setInputsRow(structuredClone(currentInputs));
@@ -160,6 +200,42 @@ export default function SettingsMonitoring(props) {
                       ...inputs,
                       'monitor_setting.auto_test_channel_minutes':
                         parseInt(value),
+                    })
+                  }
+                />
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.Select
+                  field={KEY_TEST_MODE}
+                  label={t('渠道测试模式')}
+                  optionList={CHANNEL_TEST_MODES}
+                  style={{ width: '100%' }}
+                  extraText={
+                    <Text type='tertiary' size='small'>
+                      {t(
+                        'scheduled_all：定时测试全部渠道；auto_ban_only：仅在自动禁用流程中测试；passive_recovery：被动恢复（仅在渠道被请求失败时测试）。',
+                      )}
+                    </Text>
+                  }
+                  onChange={(value) =>
+                    setInputs({ ...inputs, [KEY_TEST_MODE]: value })
+                  }
+                />
+              </Col>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.InputNumber
+                  field={KEY_TEST_CONCURRENCY}
+                  label={t('渠道测试并发数')}
+                  step={1}
+                  min={1}
+                  max={32}
+                  extraText={t('并发测试渠道时的最大并发数（1-32）。')}
+                  onChange={(value) =>
+                    setInputs({
+                      ...inputs,
+                      [KEY_TEST_CONCURRENCY]: parseInt(value) || 1,
                     })
                   }
                 />

@@ -27,6 +27,7 @@ import ModelBasicInfo from './components/ModelBasicInfo';
 import ModelEndpoints from './components/ModelEndpoints';
 import ModelPricingTable from './components/ModelPricingTable';
 import DynamicPricingBreakdown from './components/DynamicPricingBreakdown';
+import ModelUsageSchema from './components/ModelUsageSchema';
 
 const { Text } = Typography;
 
@@ -103,6 +104,16 @@ const ModelDetailSideSheet = ({
                     billingExpr={modelData.billing_expr}
                     t={t}
                   />
+                </div>
+              </>
+            )}
+            {(modelData.billing_usage_schema ||
+              (Array.isArray(modelData.billing_plugin_variants) &&
+                modelData.billing_plugin_variants.length > 0)) && (
+              <>
+                <Divider margin={16} />
+                <div style={{ padding: '0 24px' }}>
+                  <ModelUsageSchema modelData={modelData} />
                 </div>
               </>
             )}

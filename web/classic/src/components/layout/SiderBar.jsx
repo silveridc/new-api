@@ -21,7 +21,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getLucideIcon } from '../../helpers/render';
-import { ChevronLeft, Puzzle, ScrollText } from 'lucide-react';
+import { ChevronLeft, Gauge, Puzzle, ScrollText, ServerCog } from 'lucide-react';
 import { useSidebarCollapsed } from '../../hooks/common/useSidebarCollapsed';
 import { useSidebar } from '../../hooks/common/useSidebar';
 import { useMinimumLoadingTime } from '../../hooks/common/useMinimumLoadingTime';
@@ -34,6 +34,8 @@ import { Nav, Divider, Button } from '@douyinfe/semi-ui';
 const LOCAL_ICONS = {
   taskPlugins: Puzzle,
   audit: ScrollText,
+  performance: Gauge,
+  systemInfo: ServerCog,
 };
 
 function getMenuItemIcon(key, selected) {
@@ -72,6 +74,8 @@ const routerMap = {
   task: '/console/task',
   taskPlugins: '/console/task-plugins',
   audit: '/console/audit',
+  performance: '/console/performance',
+  systemInfo: '/console/system-info',
   models: '/console/models',
   deployment: '/console/deployment',
   playground: '/console/playground',
@@ -221,6 +225,18 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         itemKey: 'audit',
         to: '/console/audit',
         className: isAdmin() ? '' : 'tableHiddle',
+      },
+      {
+        text: t('模型性能'),
+        itemKey: 'performance',
+        to: '/console/performance',
+        className: isAdmin() ? '' : 'tableHiddle',
+      },
+      {
+        text: t('系统信息'),
+        itemKey: 'systemInfo',
+        to: '/console/system-info',
+        className: isRoot() ? '' : 'tableHiddle',
       },
       {
         text: t('系统设置'),

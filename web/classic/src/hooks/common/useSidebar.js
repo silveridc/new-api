@@ -54,6 +54,8 @@ export const DEFAULT_ADMIN_CONFIG = {
     subscription: true,
     taskPlugins: true,
     audit: true,
+    performance: true,
+    systemInfo: true,
     setting: true,
   },
 };

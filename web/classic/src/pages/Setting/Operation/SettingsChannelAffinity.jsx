@@ -59,12 +59,27 @@ import {
   cloneChannelAffinityTemplate,
 } from '../../../constants/channel-affinity-template.constants';
 import ParamOverrideEditorModal from '../../../components/table/channels/modals/ParamOverrideEditorModal';
+import {
+  RULE_SESSION_MODE_OPTIONS,
+  SESSION_MODE_OPTIONS,
+  partitionOptionChanges,
+  saveRequestPolicyOptions,
+} from '../../../services/requestPolicy';
 
 const KEY_ENABLED = 'channel_affinity_setting.enabled';
+const KEY_SESSION_MODE = 'channel_affinity_setting.session_mode';
 const KEY_SWITCH_ON_SUCCESS = 'channel_affinity_setting.switch_on_success';
+const KEY_KEEP_ON_CHANNEL_DISABLED =
+  'channel_affinity_setting.keep_on_channel_disabled';
 const KEY_MAX_ENTRIES = 'channel_affinity_setting.max_entries';
 const KEY_DEFAULT_TTL = 'channel_affinity_setting.default_ttl_seconds';
 const KEY_RULES = 'channel_affinity_setting.rules';
+
+// 全局 session_mode：'' 表示后端默认（prefer），见 model/request_policy.go 校验。
+const GLOBAL_SESSION_MODE_OPTIONS = [
+  { value: '', label: '默认（等同于 prefer）' },
+  ...SESSION_MODE_OPTIONS,
+];
 
 const KEY_SOURCE_TYPES = [
   { label: 'context_int', value: 'context_int' },
@@ -97,6 +112,7 @@ const RULES_JSON_PLACEHOLDER = `[
     ],
     "value_regex": "^[-0-9A-Za-z._:]{1,128}$",
     "ttl_seconds": 600,
+    "session_mode": "inherit",
     "param_override_template": {
       "operations": [
         { "path": "temperature", "mode": "set", "value": 0.2 }
@@ -211,6 +227,8 @@ const buildChannelAffinityRulePayload = ({
   key_sources: keySources,
   value_regex: (values?.value_regex || '').trim(),
   ttl_seconds: Number(values?.ttl_seconds || 0),
+  // 规则级会话策略：inherit 表示跟随全局（model/request_policy.go 校验集合）。
+  session_mode: values?.session_mode || 'inherit',
   include_using_group: !!values?.include_using_group,
   include_model_name: !!values?.include_model_name,
   include_rule_name: !!values?.include_rule_name,
@@ -222,6 +240,14 @@ const buildChannelAffinityRulePayload = ({
     ? { param_override_template: paramOverrideTemplate }
     : {}),
 });
+
+// 规则 session_mode 展示标签。
+const SESSION_MODE_TAG_MAP = {
+  inherit: { text: '跟随全局', color: 'grey' },
+  off: { text: '不保持会话', color: 'white' },
+  prefer: { text: '优先原渠道', color: 'blue' },
+  strict: { text: '严格保持原渠道', color: 'purple' },
+};
 
 export default function SettingsChannelAffinity(props) {
   const { t } = useTranslation();
@@ -240,7 +266,9 @@ export default function SettingsChannelAffinity(props) {
 
   const [inputs, setInputs] = useState({
     [KEY_ENABLED]: false,
+    [KEY_SESSION_MODE]: '',
     [KEY_SWITCH_ON_SUCCESS]: true,
+    [KEY_KEEP_ON_CHANNEL_DISABLED]: false,
     [KEY_MAX_ENTRIES]: 100000,
     [KEY_DEFAULT_TTL]: 3600,
     [KEY_RULES]: '[]',
@@ -276,6 +304,9 @@ export default function SettingsChannelAffinity(props) {
       user_agent_include_text: (r.user_agent_include || []).join('\n'),
       value_regex: r.value_regex || '',
       ttl_seconds: Number(r.ttl_seconds || 0),
+      // 与新版一致：旧规则缺省时按 skip_retry_on_failure 推导展示值。
+      session_mode:
+        r.session_mode || (r.skip_retry_on_failure ? 'strict' : 'prefer'),
       skip_retry_on_failure: !!r.skip_retry_on_failure,
       include_using_group: r.include_using_group ?? true,
       include_model_name: !!r.include_model_name,
@@ -580,6 +611,14 @@ export default function SettingsChannelAffinity(props) {
       ),
     },
     {
+      title: t('会话策略'),
+      dataIndex: 'session_mode',
+      render: (value) => {
+        const meta = SESSION_MODE_TAG_MAP[value] || SESSION_MODE_TAG_MAP.inherit;
+        return <Tag color={meta.color}>{t(meta.text)}</Tag>;
+      },
+    },
+    {
       title: t('覆盖模板'),
       render: (_, record) => {
         if (!record?.param_override_template) {
@@ -684,6 +723,7 @@ export default function SettingsChannelAffinity(props) {
       key_sources: [{ type: 'gjson', path: '' }],
       value_regex: '',
       ttl_seconds: 0,
+      session_mode: 'inherit',
       skip_retry_on_failure: false,
       include_using_group: true,
       include_model_name: false,
@@ -823,32 +863,45 @@ export default function SettingsChannelAffinity(props) {
       return showError(t('规则 JSON 格式不正确'));
     }
 
-    const requestQueue = updateArray.map((item) => {
-      let value = '';
+    // 组装 key -> value（与 PUT /api/option/ 的字符串语义一致）
+    const optionEntries = {};
+    for (const item of updateArray) {
       if (item.key === KEY_RULES) {
-        value = compactRules;
+        optionEntries[item.key] = compactRules;
       } else if (typeof inputs[item.key] === 'boolean') {
-        value = String(inputs[item.key]);
+        optionEntries[item.key] = String(inputs[item.key]);
       } else {
-        value = String(inputs[item.key] ?? '');
+        optionEntries[item.key] = String(inputs[item.key] ?? '');
       }
-      return API.put('/api/option/', { key: item.key, value });
-    });
+    }
+
+    // 保存契约：所有 channel_affinity_setting.* 均为请求策略 key
+    // （model/request_policy.go IsRequestPolicyOption），优先走原子
+    // PATCH /api/option/request_policy（router/api-router.go:217，任一 key
+    // 非法整体 400，不会出现半保存状态）。非策略 key 兜底走 PUT /api/option/。
+    const { policy, legacy } = partitionOptionChanges(optionEntries);
 
     setLoading(true);
-    Promise.all(requestQueue)
-      .then((res) => {
-        if (requestQueue.length === 1) {
-          if (res.includes(undefined)) return;
-        } else if (requestQueue.length > 1) {
-          if (res.includes(undefined))
-            return showError(t('部分保存失败，请重试'));
-        }
-        showSuccess(t('保存成功'));
-        props.refresh();
-      })
-      .catch(() => showError(t('保存失败，请重试')))
-      .finally(() => setLoading(false));
+    try {
+      const tasks = [];
+      if (Object.keys(policy).length > 0) {
+        tasks.push(saveRequestPolicyOptions(policy));
+      }
+      for (const [key, value] of Object.entries(legacy)) {
+        tasks.push(API.put('/api/option/', { key, value }));
+      }
+      const results = await Promise.all(tasks);
+      if (results.some((res) => res === undefined)) {
+        if (tasks.length > 1) return showError(t('部分保存失败，请重试'));
+        return;
+      }
+      showSuccess(t('保存成功'));
+      props.refresh();
+    } catch (error) {
+      showError(error.message || t('保存失败，请重试'));
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -857,7 +910,9 @@ export default function SettingsChannelAffinity(props) {
       if (
         ![
           KEY_ENABLED,
+          KEY_SESSION_MODE,
           KEY_SWITCH_ON_SUCCESS,
+          KEY_KEEP_ON_CHANNEL_DISABLED,
           KEY_MAX_ENTRIES,
           KEY_DEFAULT_TTL,
           KEY_RULES,
@@ -866,7 +921,11 @@ export default function SettingsChannelAffinity(props) {
         continue;
       if (key === KEY_ENABLED)
         currentInputs[key] = toBoolean(props.options[key]);
+      else if (key === KEY_SESSION_MODE)
+        currentInputs[key] = String(props.options[key] ?? '');
       else if (key === KEY_SWITCH_ON_SUCCESS)
+        currentInputs[key] = toBoolean(props.options[key]);
+      else if (key === KEY_KEEP_ON_CHANNEL_DISABLED)
         currentInputs[key] = toBoolean(props.options[key]);
       else if (key === KEY_MAX_ENTRIES)
         currentInputs[key] = Number(props.options[key] || 0) || 0;
@@ -987,6 +1046,40 @@ export default function SettingsChannelAffinity(props) {
             </Row>
 
             <Row gutter={16} style={{ marginTop: 12 }}>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.Select
+                  field={KEY_SESSION_MODE}
+                  label={t('全局会话策略（session_mode）')}
+                  optionList={GLOBAL_SESSION_MODE_OPTIONS}
+                  style={{ width: '100%' }}
+                  onChange={(value) =>
+                    setInputs({ ...inputs, [KEY_SESSION_MODE]: value ?? '' })
+                  }
+                  extraText={
+                    <Text type='tertiary' size='small'>
+                      {t(
+                        '会话亲和模式的全局默认值：prefer 优先复用原渠道（失败可切换）；strict 严格锁定原渠道（失败不切换）；off 关闭会话亲和。',
+                      )}
+                    </Text>
+                  }
+                />
+              </Col>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.Switch
+                  field={KEY_KEEP_ON_CHANNEL_DISABLED}
+                  label={t('渠道禁用后保留亲和（keep_on_channel_disabled）')}
+                  checkedText='|'
+                  uncheckedText='O'
+                  onChange={(value) =>
+                    setInputs({ ...inputs, [KEY_KEEP_ON_CHANNEL_DISABLED]: value })
+                  }
+                />
+                <Text type='tertiary' size='small'>
+                  {t(
+                    '关闭时，亲和到的渠道被禁用将清除对应亲和绑定；开启后仍保留绑定，渠道恢复启用可继续复用。',
+                  )}
+                </Text>
+              </Col>
               <Col xs={24} sm={12} md={8} lg={8} xl={8}>
                 <Form.Switch
                   field={KEY_SWITCH_ON_SUCCESS}
@@ -1134,6 +1227,21 @@ export default function SettingsChannelAffinity(props) {
           </Row>
 
           <Row gutter={16} style={{ marginTop: 12 }}>
+            <Col xs={24} sm={12}>
+              <Form.Select
+                field='session_mode'
+                label={t('会话策略（session_mode）')}
+                optionList={RULE_SESSION_MODE_OPTIONS}
+                style={{ width: '100%' }}
+                extraText={
+                  <Text type='tertiary' size='small'>
+                    {t(
+                      'inherit 跟随全局会话策略；off/prefer/strict 覆盖全局默认。旧规则未设置时按“失败后不重试”推导展示。',
+                    )}
+                  </Text>
+                }
+              />
+            </Col>
             <Col xs={24} sm={12}>
               <Form.Switch
                 field='skip_retry_on_failure'

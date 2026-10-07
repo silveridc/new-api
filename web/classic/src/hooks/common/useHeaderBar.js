@@ -89,6 +89,16 @@ export const useHeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
     return false; // 默认不需要登录
   }, [headerNavModules]);
 
+  // 新增：排行榜页鉴权配置（新版 rankings.requireAuth）
+  const rankingsRequireAuth = useMemo(() => {
+    if (headerNavModules?.rankings) {
+      return typeof headerNavModules.rankings === 'object'
+        ? headerNavModules.rankings.requireAuth === true
+        : false;
+    }
+    return false; // 默认不需要登录
+  }, [headerNavModules]);
+
   const isConsoleRoute = location.pathname.startsWith('/console');
 
   const theme = useTheme();
@@ -238,6 +248,7 @@ export const useHeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
     drawerOpen,
     headerNavModules,
     pricingRequireAuth,
+    rankingsRequireAuth,
 
     // Actions
     logout: logoutUser,

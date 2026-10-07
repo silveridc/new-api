@@ -26,6 +26,8 @@ export const useNavigation = (t, docsLink, headerNavModules) => {
       home: true,
       console: true,
       pricing: true,
+      // 新版默认 rankings 开启（web/src/lib/nav-modules.ts DEFAULT_HEADER_NAV_MODULES）
+      rankings: { enabled: true, requireAuth: false },
       docs: true,
       about: true,
     };
@@ -48,6 +50,11 @@ export const useNavigation = (t, docsLink, headerNavModules) => {
         text: t('模型广场'),
         itemKey: 'pricing',
         to: '/pricing',
+      },
+      {
+        text: t('排行榜'),
+        itemKey: 'rankings',
+        to: '/rankings',
       },
       ...(docsLink
         ? [
@@ -76,6 +83,13 @@ export const useNavigation = (t, docsLink, headerNavModules) => {
         return typeof modules.pricing === 'object'
           ? modules.pricing.enabled
           : modules.pricing;
+      }
+      if (link.itemKey === 'rankings') {
+        // 新版逻辑（web/src/hooks/use-top-nav-links.ts）：rankings 为对象格式
+        // { enabled, requireAuth }，未显式关闭则展示；兼容 boolean 配置。
+        const module = modules.rankings;
+        if (module && typeof module === 'object') return module.enabled !== false;
+        return module !== false;
       }
       return modules[link.itemKey] === true;
     });

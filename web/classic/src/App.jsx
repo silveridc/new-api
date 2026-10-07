@@ -44,6 +44,10 @@ import Task from './pages/Task';
 // 新增：任务插件管理页、审计页（lazy 路由）
 const TaskPlugins = lazy(() => import('./pages/TaskPlugins'));
 const Audit = lazy(() => import('./pages/Audit'));
+// 新增：排行榜页、模型性能页、系统信息页（lazy 路由）
+const Rankings = lazy(() => import('./pages/Rankings'));
+const Performance = lazy(() => import('./pages/Performance'));
+const SystemInfo = lazy(() => import('./pages/SystemInfo'));
 import ModelPage from './pages/Model';
 import ModelDeploymentPage from './pages/ModelDeployment';
 import Playground from './pages/Playground';
@@ -88,6 +92,21 @@ function App() {
       }
     }
     return false; // 默认不需要登录
+  }, [statusState?.status?.HeaderNavModules]);
+
+  // 新增：排行榜页鉴权配置（与新版 use-top-nav-links.ts 的 rankings.requireAuth 一致）
+  const rankingsRequireAuth = useMemo(() => {
+    const headerNavModulesConfig = statusState?.status?.HeaderNavModules;
+    if (headerNavModulesConfig) {
+      try {
+        const modules = JSON.parse(headerNavModulesConfig);
+        return modules.rankings?.requireAuth === true;
+      } catch (error) {
+        console.error('解析顶栏模块配置失败:', error);
+        return false;
+      }
+    }
+    return false;
   }, [statusState?.status?.HeaderNavModules]);
 
   return (
@@ -322,6 +341,27 @@ function App() {
         <Route path='/console/task-plugins' element={<AdminRoute><Suspense fallback={<Loading></Loading>} key={location.pathname}><TaskPlugins /></Suspense></AdminRoute>} />
         {/* 新增：审计页（self 视角对所有登录用户开放） */}
         <Route path='/console/audit' element={<PrivateRoute><Suspense fallback={<Loading></Loading>} key={location.pathname}><Audit /></Suspense></PrivateRoute>} />
+        {/* 新增：排行榜页（顶栏入口；requireAuth 开启时需登录，与 /pricing 一致） */}
+        <Route
+          path='/rankings'
+          element={
+            rankingsRequireAuth ? (
+              <PrivateRoute>
+                <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                  <Rankings />
+                </Suspense>
+              </PrivateRoute>
+            ) : (
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <Rankings />
+              </Suspense>
+            )
+          }
+        />
+        {/* 新增：模型性能页（管理员） */}
+        <Route path='/console/performance' element={<AdminRoute><Suspense fallback={<Loading></Loading>} key={location.pathname}><Performance /></Suspense></AdminRoute>} />
+        {/* 新增：系统信息与后台任务页（Root，页面内二次校验 isRoot） */}
+        <Route path='/console/system-info' element={<AdminRoute><Suspense fallback={<Loading></Loading>} key={location.pathname}><SystemInfo /></Suspense></AdminRoute>} />
         <Route
           path='/pricing'
           element={
