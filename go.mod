@@ -6,7 +6,7 @@ go 1.26.0
 toolchain go1.26.6
 
 require (
-	github.com/Calcium-Ion/go-epay v0.0.4
+	github.com/Calcium-Ion/go-epay v0.0.5
 	github.com/abema/go-mp4 v1.4.1
 	github.com/andybalholm/brotli v1.2.0
 	github.com/anknown/ahocorasick v0.0.0-20190904063843-d75dbd5169c0
@@ -50,7 +50,7 @@ require (
 	github.com/thanhpk/randstr v1.0.6
 	github.com/tidwall/gjson v1.19.0
 	github.com/tidwall/sjson v1.2.5
-	github.com/tiktoken-go/tokenizer v0.6.2
+	github.com/tiktoken-go/tokenizer v0.8.1 // indirect
 	github.com/waffo-com/waffo-go v1.3.2
 	github.com/yapingcat/gomedia v0.0.0-20240906162731-17feea57090c
 	golang.org/x/crypto v0.56.0
@@ -76,6 +76,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.6.1 // indirect
 	github.com/casbin/govaluate v1.10.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
+	github.com/dlclark/regexp2/v2 v2.5.1 // indirect
 	github.com/go-faster/city v1.0.1 // indirect
 	github.com/go-faster/errors v0.7.1 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
@@ -119,7 +120,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
-	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/expr-lang/expr v1.17.8
 	github.com/fxamacker/cbor/v2 v2.9.0
@@ -180,9 +180,10 @@ require (
 )
 
 require (
-	github.com/Calcium-Ion/moejs v0.1.0-alpha.5
+	github.com/Calcium-Ion/moejs v0.1.0-alpha.6
 	github.com/ClickHouse/clickhouse-go/v2 v2.46.0
 	github.com/QuantumNous/new-api/relaykit v0.0.0
+	github.com/QuantumNous/new-api/tokenkit v0.0.0
 	github.com/getsentry/sentry-go/gin v0.49.0
 	go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin v0.66.0
 	go.opentelemetry.io/otel v1.46.0
@@ -192,3 +193,5 @@ require (
 )
 
 replace github.com/QuantumNous/new-api/relaykit => ./relaykit
+
+replace github.com/QuantumNous/new-api/tokenkit => ./tokenkit
