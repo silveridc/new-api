@@ -24,7 +24,7 @@ func SetRouter(router *gin.Engine, assets WebAssets) {
 	frontendBaseUrl := os.Getenv("FRONTEND_BASE_URL")
 	if common.IsMasterNode && frontendBaseUrl != "" {
 		frontendBaseUrl = ""
-		common.SysLog("FRONTEND_BASE_URL is ignored on master node")
+		common.SysLog(common.LogText("FRONTEND_BASE_URL is ignored on master node"))
 	}
 	if os.Getenv("USE_NGINX") == "true" {
 		// zhaoyj add: frontend is served by an external nginx, only expose the API routes
