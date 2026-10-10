@@ -27,6 +27,7 @@ import {
   Typography,
 } from '@douyinfe/semi-ui';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -36,21 +37,22 @@ const TwoFAVerification = ({
   isModal = false,
   flowToken,
 }) => {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [useBackupCode, setUseBackupCode] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
 
   const handleSubmit = async () => {
     if (!verificationCode) {
-      showError('请输入验证码');
+      showError(t('请输入验证码'));
       return;
     }
     // Validate code format
     if (useBackupCode && verificationCode.length !== 8) {
-      showError('备用码必须是8位');
+      showError(t('备用码必须是8位'));
       return;
     } else if (!useBackupCode && !/^\d{6}$/.test(verificationCode)) {
-      showError('验证码必须是6位数字');
+      showError(t('验证码必须是6位数字'));
       return;
     }
 
@@ -64,15 +66,15 @@ const TwoFAVerification = ({
 
       if (res.data.success) {
         const user = applyAuthBundle(res.data.data);
-        if (!user) throw new Error('登录响应无效');
-        showSuccess('登录成功');
+        if (!user) throw new Error(t('登录响应无效'));
+        showSuccess(t('登录成功'));
         storeUserProfile(user);
         if (onSuccess) onSuccess(user);
       } else {
         showError(res.data.message);
       }
     } catch (error) {
-      showError('验证失败，请重试');
+      showError(t('验证失败，请重试'));
     } finally {
       setLoading(false);
     }
@@ -88,14 +90,16 @@ const TwoFAVerification = ({
     return (
       <div className='space-y-4'>
         <Paragraph className='text-gray-600 dark:text-gray-300'>
-          请输入认证器应用显示的验证码完成登录
+          {t('请输入认证器应用显示的验证码完成登录')}
         </Paragraph>
 
         <Form onSubmit={handleSubmit}>
           <Form.Input
             field='code'
-            label={useBackupCode ? '备用码' : '验证码'}
-            placeholder={useBackupCode ? '请输入8位备用码' : '请输入6位验证码'}
+            label={useBackupCode ? t('备用码') : t('验证码')}
+            placeholder={
+              useBackupCode ? t('请输入8位备用码') : t('请输入6位验证码')
+            }
             value={verificationCode}
             onChange={setVerificationCode}
             onKeyPress={handleKeyPress}
@@ -112,7 +116,7 @@ const TwoFAVerification = ({
             size='large'
             style={{ marginBottom: 16 }}
           >
-            验证并登录
+            {t('验证并登录')}
           </Button>
         </Form>
 
@@ -128,7 +132,7 @@ const TwoFAVerification = ({
             }}
             style={{ marginRight: 16, color: '#1890ff', padding: 0 }}
           >
-            {useBackupCode ? '使用认证器验证码' : '使用备用码'}
+            {useBackupCode ? t('使用认证器验证码') : t('使用备用码')}
           </Button>
 
           {onBack && (
@@ -138,19 +142,20 @@ const TwoFAVerification = ({
               onClick={onBack}
               style={{ color: '#1890ff', padding: 0 }}
             >
-              返回登录
+              {t('返回登录')}
             </Button>
           )}
         </div>
 
         <div className='bg-gray-50 dark:bg-gray-800 rounded-lg p-3'>
           <Text size='small' type='secondary'>
-            <strong>提示：</strong>
+            <strong>{t('提示：')}</strong>
             <br />
-            • 验证码每30秒更新一次
+            {t('• 验证码每30秒更新一次')}
             <br />
-            • 如果无法获取验证码，请使用备用码
-            <br />• 每个备用码只能使用一次
+            {t('• 如果无法获取验证码，请使用备用码')}
+            <br />
+            {t('• 每个备用码只能使用一次')}
           </Text>
         </div>
       </div>
@@ -168,17 +173,19 @@ const TwoFAVerification = ({
     >
       <Card style={{ width: 400, padding: 24 }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <Title heading={3}>两步验证</Title>
+          <Title heading={3}>{t('两步验证')}</Title>
           <Paragraph type='secondary'>
-            请输入认证器应用显示的验证码完成登录
+            {t('请输入认证器应用显示的验证码完成登录')}
           </Paragraph>
         </div>
 
         <Form onSubmit={handleSubmit}>
           <Form.Input
             field='code'
-            label={useBackupCode ? '备用码' : '验证码'}
-            placeholder={useBackupCode ? '请输入8位备用码' : '请输入6位验证码'}
+            label={useBackupCode ? t('备用码') : t('验证码')}
+            placeholder={
+              useBackupCode ? t('请输入8位备用码') : t('请输入6位验证码')
+            }
             value={verificationCode}
             onChange={setVerificationCode}
             onKeyPress={handleKeyPress}
@@ -195,7 +202,7 @@ const TwoFAVerification = ({
             size='large'
             style={{ marginBottom: 16 }}
           >
-            验证并登录
+            {t('验证并登录')}
           </Button>
         </Form>
 
@@ -211,7 +218,7 @@ const TwoFAVerification = ({
             }}
             style={{ marginRight: 16, color: '#1890ff', padding: 0 }}
           >
-            {useBackupCode ? '使用认证器验证码' : '使用备用码'}
+            {useBackupCode ? t('使用认证器验证码') : t('使用备用码')}
           </Button>
 
           {onBack && (
@@ -221,7 +228,7 @@ const TwoFAVerification = ({
               onClick={onBack}
               style={{ color: '#1890ff', padding: 0 }}
             >
-              返回登录
+              {t('返回登录')}
             </Button>
           )}
         </div>
@@ -235,12 +242,13 @@ const TwoFAVerification = ({
           }}
         >
           <Text size='small' type='secondary'>
-            <strong>提示：</strong>
+            <strong>{t('提示：')}</strong>
             <br />
-            • 验证码每30秒更新一次
+            {t('• 验证码每30秒更新一次')}
             <br />
-            • 如果无法获取验证码，请使用备用码
-            <br />• 每个备用码只能使用一次
+            {t('• 如果无法获取验证码，请使用备用码')}
+            <br />
+            {t('• 每个备用码只能使用一次')}
           </Text>
         </div>
       </Card>

@@ -31,6 +31,7 @@ import {
   processThinkTags,
   processIncompleteThinkTags,
 } from '../../helpers';
+import { ensureAuthHeaders } from '../../helpers/authSession';
 
 export const useApiRequest = (
   setMessage,
@@ -190,6 +191,8 @@ export const useApiRequest = (
           headers: {
             'Content-Type': 'application/json',
             'New-Api-User': getUserIdFromLocalStorage(),
+            // 裸 fetch 不经过 API 客户端，需手动附带访问令牌（带过期前刷新）
+            ...(await ensureAuthHeaders()),
           },
           body: JSON.stringify(payload),
         });
@@ -302,7 +305,7 @@ export const useApiRequest = (
 
   // SSE请求
   const handleSSE = useCallback(
-    (payload) => {
+    async (payload) => {
       setDebugData((prev) => ({
         ...prev,
         request: payload,
@@ -313,10 +316,14 @@ export const useApiRequest = (
       }));
       setActiveDebugTab(DEBUG_TABS.REQUEST);
 
+      // 裸 SSE 不经过 API 客户端，需手动附带访问令牌（带过期前刷新）
+      const authHeaders = await ensureAuthHeaders();
+
       const source = new SSE(API_ENDPOINTS.CHAT_COMPLETIONS, {
         headers: {
           'Content-Type': 'application/json',
           'New-Api-User': getUserIdFromLocalStorage(),
+          ...authHeaders,
         },
         method: 'POST',
         payload: JSON.stringify(payload),

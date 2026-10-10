@@ -113,6 +113,27 @@ export async function getFreshAuthHeaders() {
   return getCommonAuthHeaders();
 }
 
+/**
+ * 供绕过 API 客户端的裸请求（fetch/SSE）使用：访问令牌缺失或临近过期时
+ * 先刷新，保证这些请求也能拿到有效令牌（API 客户端的 401 自动刷新不会
+ * 覆盖裸请求）。刷新失败时回退到现有令牌，由服务端返回 401 触发上层提示。
+ */
+export async function ensureAuthHeaders(minValiditySeconds = 60) {
+  const expiresAt = Number(authBundle?.access_expires_at || 0);
+  const now = Math.floor(Date.now() / 1000);
+  if (
+    !getAccessToken() ||
+    (expiresAt > 0 && expiresAt - now <= minValiditySeconds)
+  ) {
+    try {
+      await refreshAuthentication();
+    } catch {
+      // 保持现有令牌，请求失败由调用方处理。
+    }
+  }
+  return getCommonAuthHeaders();
+}
+
 export function getCommonAuthHeaders() {
   const token = getAccessToken();
   return token ? { Authorization: `Bearer ${token}` } : {};

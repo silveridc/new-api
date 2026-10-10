@@ -4227,6 +4227,21 @@
     "批量渠道测试": "Bulk Channel Test",
     "批量上游模型更新": "Bulk Upstream Model Update",
     "绘图任务轮询": "Midjourney Task Polling",
-    "异步任务轮询": "Async Task Polling"
+    "异步任务轮询": "Async Task Polling",
+    "验证码必须是6位数字": "Verification code must be 6 digits",
+    "备用码必须是8位": "Backup code must be 8 characters",
+    "登录响应无效": "Invalid login response",
+    "验证并登录": "Verify and Sign In",
+    "请输入认证器应用显示的验证码完成登录": "Enter the code shown in your authenticator app to complete sign-in",
+    "备用码": "Backup Code",
+    "请输入8位备用码": "Please enter the 8-character backup code",
+    "请输入6位验证码": "Please enter the 6-digit verification code",
+    "使用认证器验证码": "Use authenticator code",
+    "使用备用码": "Use backup code",
+    "提示：": "Tips:",
+    "• 验证码每30秒更新一次": "• The code refreshes every 30 seconds",
+    "• 如果无法获取验证码，请使用备用码": "• If you cannot get a code, use a backup code",
+    "• 每个备用码只能使用一次": "• Each backup code can only be used once",
+    "登录成功": "Login successful"
   }
 }

@@ -6,7 +6,7 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   resolve: {
-    alias: { '@': path.resolve(root, '../src') },
+    alias: { '@': path.resolve(root, 'src') },
     dedupe: ['react', 'react-dom', 'i18next', 'react-i18next', 'axios', 'zustand'],
   },
   test: {

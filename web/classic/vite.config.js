@@ -28,7 +28,7 @@ const { vitePluginSemi } = pkg;
 export default defineConfig({
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, '../src'),
+      '@': path.resolve(__dirname, 'src'),
     },
     dedupe: ['react', 'react-dom', 'i18next', 'react-i18next', 'axios', 'zustand'],
   },
