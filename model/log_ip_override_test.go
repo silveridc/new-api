@@ -31,7 +31,7 @@ func TestRecordConsumeLogGlobalIpOverride(t *testing.T) {
 		ModelName:      "gpt-test",
 		TokenName:      "tok",
 		Quota:          10,
-		Content:        "test",
+		Content:        []*common.Message{common.NewMessage("test")},
 		TokenId:        1,
 		UseTimeSeconds: 1,
 		Group:          "default",
