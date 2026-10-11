@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"context"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -124,4 +126,27 @@ func TestConfigureTrustedProxiesRejectsInvalidConfiguration(t *testing.T) {
 			assert.Error(t, ConfigureTrustedProxies(router))
 		})
 	}
+}
+
+func TestConfigureTrustedProxiesResolvesUnixSocketForwardedIP(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	t.Setenv("TRUSTED_PROXIES", "")
+	router := newClientIPRouter()
+	require.NoError(t, ConfigureTrustedProxies(router))
+
+	// UNIX_SOCKET_PATH 部署下本机 nginx 经 unix socket 反代：TCP 直连来源是抽象
+	// socket 名 "@"（SplitHostPort 失败），gin 需凭 LocalAddr 为 unix 判定可信，
+	// 再从转发头解析真实客户端 IP。gin<1.12 不认 unix socket，此处会取不到 IP，
+	// 导致日志/IP 记录/限流/令牌 IP 白名单全部拿到空值。
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/client-ip", nil)
+	request.RemoteAddr = "@"
+	request.Header.Set("X-Forwarded-For", "203.0.113.9")
+	request = request.WithContext(context.WithValue(
+		request.Context(),
+		http.LocalAddrContextKey,
+		&net.UnixAddr{Name: "/run/new-api.sock", Net: "unix"},
+	))
+	router.ServeHTTP(recorder, request)
+	assert.Equal(t, "203.0.113.9", recorder.Body.String())
 }
