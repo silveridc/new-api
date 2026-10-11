@@ -34,6 +34,8 @@ import {
   renderModelTag,
   renderModelPriceSimple,
   renderTieredModelPriceSimple,
+  renderLogContentParts,
+  translateServerText,
 } from '../../../helpers';
 import { IconHelpCircle } from '@douyinfe/semi-icons';
 import { CircleAlert, Route, Sparkles } from 'lucide-react';
@@ -626,7 +628,8 @@ export const getLogsColumns = ({
               }}
             >
               {' '}
-              {t(text)}{' '}
+              {/* 渠道测试等无令牌日志的 token_name 是英文原文 key，按界面语言翻译 */}
+              {record.token_id === 0 ? translateServerText(text) : t(text)}{' '}
             </Tag>
           </div>
         ) : (
@@ -913,6 +916,10 @@ export const getLogsColumns = ({
         );
 
         if (!detailSummary) {
+          // 结构化 content_parts（英文 key + params）按界面语言渲染，
+          // 旧日志没有该字段时回退显示原始 content
+          const contentText =
+            renderLogContentParts(getLogOther(record.other)) || text;
           return (
             <Typography.Paragraph
               ellipsis={{
@@ -924,7 +931,7 @@ export const getLogsColumns = ({
               }}
               style={{ maxWidth: 200, marginBottom: 0 }}
             >
-              {text}
+              {contentText}
             </Typography.Paragraph>
           );
         }

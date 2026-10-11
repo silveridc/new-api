@@ -28,6 +28,7 @@ import {
 import { TABLE_COMPACT_MODES_KEY } from '../constants';
 import { MOBILE_BREAKPOINT } from '../hooks/common/useIsMobile';
 import { getAuthUser, getAuthBundle } from './authSession';
+import { getServerMessage, translateServerText } from './serverMessage';
 
 const HTMLToastContent = ({ htmlContent }) => {
   return <div dangerouslySetInnerHTML={{ __html: htmlContent }} />;
@@ -115,7 +116,9 @@ if (isMobileScreen) {
 
 export function showError(error) {
   console.error(error);
-  if (error.message) {
+  if (error && typeof error === 'object' && error.message) {
+    // 服务器消息 i18n：响应体或 axios 错误带 message_key / code 时显示翻译后的中文
+    const serverMessage = getServerMessage(error);
     if (error.name === 'AxiosError') {
       switch (error.response.status) {
         case 401:
@@ -134,11 +137,14 @@ export function showError(error) {
           Toast.info('本站仅作演示之用，无服务端！');
           break;
         default:
-          Toast.error('错误：' + error.message);
+          Toast.error('错误：' + (serverMessage || error.message));
       }
       return;
     }
-    Toast.error('错误：' + error.message);
+    Toast.error('错误：' + (serverMessage || error.message));
+  } else if (typeof error === 'string') {
+    // 纯文本（业务响应的 message 等）：命中映射表的英文原文翻译成中文
+    Toast.error('错误：' + translateServerText(error));
   } else {
     Toast.error('错误：' + error);
   }

@@ -28,6 +28,7 @@ import {
   renderQuotaWithAmount,
   copy,
   getQuotaPerUnit,
+  getServerMessage,
 } from '../../helpers';
 import { Modal, Toast } from '@douyinfe/semi-ui';
 import { useTranslation } from 'react-i18next';
@@ -191,7 +192,8 @@ const TopUp = () => {
         }
         setRedemptionCode('');
       } else {
-        showError(message);
+        // 支付/兑换接口的错误响应带 message_key，优先显示翻译后的中文
+        showError(getServerMessage(res.data) || message);
       }
     } catch (err) {
       showError(t('请求失败'));
@@ -337,8 +339,11 @@ const TopUp = () => {
             document.body.removeChild(form);
           }
         } else {
+          // 错误响应带 message_key 时优先显示翻译后的中文
           const errorMsg =
-            typeof data === 'string' ? data : message || t('支付失败');
+            getServerMessage(res.data) ||
+            (typeof data === 'string' ? data : message) ||
+            t('支付失败');
           showError(errorMsg);
         }
       } else {
@@ -383,7 +388,9 @@ const TopUp = () => {
           processCreemCallback(data);
         } else {
           const errorMsg =
-            typeof data === 'string' ? data : message || t('支付失败');
+            getServerMessage(res.data) ||
+            (typeof data === 'string' ? data : message) ||
+            t('支付失败');
           showError(errorMsg);
         }
       } else {
