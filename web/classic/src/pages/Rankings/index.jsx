@@ -43,6 +43,8 @@ import {
   buildVendorRows,
   buildMoverRows,
 } from '../../services/rankings';
+import VendorLabel from './VendorLabel';
+import RankingTrendCharts from './RankingTrendCharts';
 
 const { Text, Title } = Typography;
 
@@ -95,9 +97,19 @@ export default function Rankings() {
     {
       title: t('模型'),
       dataIndex: 'model_name',
-      render: (text) => <Text strong>{text}</Text>,
+      render: (text, record) => (
+        <VendorLabel icon={record.vendor_icon}>
+          <Text strong>{text}</Text>
+        </VendorLabel>
+      ),
     },
-    { title: t('厂商'), dataIndex: 'vendor' },
+    {
+      title: t('厂商'),
+      dataIndex: 'vendor',
+      render: (text, record) => (
+        <VendorLabel icon={record.vendor_icon}>{text}</VendorLabel>
+      ),
+    },
     { title: t('分类'), dataIndex: 'category' },
     {
       title: t('Tokens'),
@@ -122,10 +134,20 @@ export default function Rankings() {
     {
       title: t('厂商'),
       dataIndex: 'vendor',
-      render: (text) => <Text strong>{text}</Text>,
+      render: (text, record) => (
+        <VendorLabel icon={record.vendor_icon}>
+          <Text strong>{text}</Text>
+        </VendorLabel>
+      ),
     },
     { title: t('模型数'), dataIndex: 'models_count' },
-    { title: t('最热门模型'), dataIndex: 'top_model' },
+    {
+      title: t('最热门模型'),
+      dataIndex: 'top_model',
+      render: (text, record) => (
+        <VendorLabel icon={record.vendor_icon}>{text}</VendorLabel>
+      ),
+    },
     { title: t('Tokens'), dataIndex: 'total_tokens_label' },
     { title: t('份额'), dataIndex: 'share_label' },
     {
@@ -145,9 +167,19 @@ export default function Rankings() {
     {
       title: t('模型'),
       dataIndex: 'model_name',
-      render: (text) => <Text strong>{text}</Text>,
+      render: (text, record) => (
+        <VendorLabel icon={record.vendor_icon}>
+          <Text strong>{text}</Text>
+        </VendorLabel>
+      ),
     },
-    { title: t('厂商'), dataIndex: 'vendor' },
+    {
+      title: t('厂商'),
+      dataIndex: 'vendor',
+      render: (text, record) => (
+        <VendorLabel icon={record.vendor_icon}>{text}</VendorLabel>
+      ),
+    },
     { title: t('Tokens 环比'), dataIndex: 'growth_label' },
   ];
 
@@ -198,6 +230,12 @@ export default function Rankings() {
       <Spin spinning={loading}>
         <Card bodyStyle={{ paddingTop: 4 }}>
           <Tabs type='line'>
+            <Tabs.TabPane tab={t('趋势')} itemKey='trend'>
+              <RankingTrendCharts
+                modelsHistory={snapshot?.models_history}
+                vendorShareHistory={snapshot?.vendor_share_history}
+              />
+            </Tabs.TabPane>
             <Tabs.TabPane tab={t('模型调用排行')} itemKey='models'>
               <Table
                 columns={modelColumns}

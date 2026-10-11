@@ -37,6 +37,9 @@ import {
   buildModelRows,
   buildVendorRows,
   buildMoverRows,
+  buildModelHistoryValues,
+  buildVendorShareValues,
+  MAX_TREND_SERIES,
 } from '../rankings';
 
 // 契约样例来自后端 service/rankings.go RankingsResponse / RankedModel /
@@ -192,5 +195,91 @@ describe('rankings service contract', () => {
       growth_label: '+20%',
     });
     expect(buildMoverRows(undefined)).toEqual([]);
+  });
+
+  it('keeps vendor_icon on rows and defaults it to empty string', () => {
+    const rows = buildModelRows([
+      {
+        rank: 1,
+        model_name: 'gpt-4o',
+        vendor: 'OpenAI',
+        vendor_icon: 'OpenAI.Color',
+      },
+      { rank: 2, model_name: 'x', vendor: 'Y' },
+    ]);
+    expect(rows[0].vendor_icon).toBe('OpenAI.Color');
+    expect(rows[1].vendor_icon).toBe('');
+  });
+});
+
+describe('rankings trend chart mapping', () => {
+  const HISTORY = {
+    models_history: {
+      points: [
+        { ts: '2025-01-02', label: '1/2', model: 'a', tokens: 20 },
+        { ts: '2025-01-01', label: '1/1', model: 'b', tokens: 5 },
+        { ts: '2025-01-01', label: '1/1', model: 'a', tokens: 10 },
+        { ts: '2025-01-02', label: '1/2', model: 'c', tokens: 3 },
+      ],
+      models: [
+        { name: 'a', total: 30 },
+        { name: 'b', total: 5 },
+        { name: 'c', total: 3 },
+      ],
+      buckets: 2,
+    },
+    vendor_share_history: {
+      points: [
+        { ts: '2025-01-01', label: '1/1', vendor: 'A', share: 0.6, tokens: 60 },
+        { ts: '2025-01-01', label: '1/1', vendor: 'B', share: 0.4, tokens: 40 },
+        { ts: '2025-01-02', label: '1/2', vendor: 'A', share: 0.7, tokens: 70 },
+        { ts: '2025-01-02', label: '1/2', vendor: 'B', share: 0.3, tokens: 30 },
+      ],
+      vendors: [
+        { name: 'A', total: 130, share: 0.65 },
+        { name: 'B', total: 70, share: 0.35 },
+      ],
+      buckets: 2,
+    },
+  };
+
+  it('defaults the series limit to 8', () => {
+    expect(MAX_TREND_SERIES).toBe(8);
+  });
+
+  it('orders model history by ts then series order and caps series', () => {
+    // limit=2 → 只保留 a、b；c 被丢弃。
+    const values = buildModelHistoryValues(HISTORY.models_history, 2);
+    expect(values.map((v) => `${v.label}:${v.model}`)).toEqual([
+      '1/1:a',
+      '1/1:b',
+      '1/2:a',
+    ]);
+    expect(values[0]).toEqual({
+      ts: '2025-01-01',
+      label: '1/1',
+      model: 'a',
+      tokens: 10,
+    });
+
+    const all = buildModelHistoryValues(HISTORY.models_history);
+    expect(all).toHaveLength(4);
+  });
+
+  it('orders vendor share history and caps series', () => {
+    const values = buildVendorShareValues(HISTORY.vendor_share_history, 1);
+    expect(values.map((v) => `${v.label}:${v.vendor}`)).toEqual([
+      '1/1:A',
+      '1/2:A',
+    ]);
+    expect(values[0]).toMatchObject({ vendor: 'A', share: 0.6, tokens: 60 });
+  });
+
+  it('returns empty arrays for missing history', () => {
+    expect(buildModelHistoryValues(undefined)).toEqual([]);
+    expect(buildVendorShareValues(null)).toEqual([]);
+    expect(
+      buildModelHistoryValues({ points: [], models: [{ name: 'a' }] }),
+    ).toEqual([]);
   });
 });

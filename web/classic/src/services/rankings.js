@@ -113,6 +113,7 @@ export function buildModelRows(models) {
     display_rank: `#${m?.rank ?? index + 1}`,
     model_name: m?.model_name || '-',
     vendor: m?.vendor || '-',
+    vendor_icon: m?.vendor_icon || '',
     category: m?.category || '-',
     total_tokens: Number(m?.total_tokens || 0),
     total_tokens_label: formatTokenCount(m?.total_tokens),
@@ -133,6 +134,7 @@ export function buildVendorRows(vendors) {
     rank: v?.rank ?? index + 1,
     display_rank: `#${v?.rank ?? index + 1}`,
     vendor: v?.vendor || '-',
+    vendor_icon: v?.vendor_icon || '',
     models_count: Number(v?.models_count || 0),
     top_model: v?.top_model || '-',
     total_tokens: Number(v?.total_tokens || 0),
@@ -152,9 +154,77 @@ export function buildMoverRows(list) {
     key: m?.model_name || `mover-${index}`,
     model_name: m?.model_name || '-',
     vendor: m?.vendor || '-',
+    vendor_icon: m?.vendor_icon || '',
     current_rank: Number(m?.current_rank || 0),
     rank_delta: Number(m?.rank_delta || 0),
     growth_pct: Number(m?.growth_pct || 0),
     growth_label: formatGrowthPct(m?.growth_pct),
   }));
+}
+
+/**
+ * 图表系列上限。系列过多会互相挤压、图例不可读，只保留 total 最高的前 N 个
+ * （models/vendors 已按 total 降序返回）。
+ */
+export const MAX_TREND_SERIES = 8;
+
+/**
+ * 按 ts 升序、同 ts 内按 seriesOrder 顺序排列，保证堆叠自底向上与图例顺序一致。
+ * x 轴类别顺序由数据首次出现顺序决定，因此必须排序而不是原样透传。
+ */
+function sortByTsThenOrder(points, seriesField, order) {
+  return [...points].sort((a, b) => {
+    const tsCmp = String(a?.ts ?? '').localeCompare(String(b?.ts ?? ''));
+    if (tsCmp !== 0) return tsCmp;
+    return (
+      (order.get(a?.[seriesField]) ?? 999) -
+      (order.get(b?.[seriesField]) ?? 999)
+    );
+  });
+}
+
+/**
+ * models_history -> 堆叠柱数据。只保留 models 前 N 个模型，字段：label/model/tokens。
+ */
+export function buildModelHistoryValues(history, limit = MAX_TREND_SERIES) {
+  const points = Array.isArray(history?.points) ? history.points : [];
+  const models = Array.isArray(history?.models) ? history.models : [];
+  if (!points.length || !models.length) return [];
+
+  const top = models.slice(0, limit).filter((m) => m?.name);
+  const order = new Map(top.map((m, index) => [m.name, index]));
+  const kept = points
+    .filter((p) => order.has(p?.model))
+    .map((p) => ({
+      ts: p?.ts ?? '',
+      label: p?.label ?? '',
+      model: p?.model,
+      tokens: Number(p?.tokens) || 0,
+    }));
+
+  return sortByTsThenOrder(kept, 'model', order);
+}
+
+/**
+ * vendor_share_history -> 100% 堆叠面积图数据。只保留 vendors 前 N 个厂商，
+ * 字段：label/vendor/share/tokens。
+ */
+export function buildVendorShareValues(history, limit = MAX_TREND_SERIES) {
+  const points = Array.isArray(history?.points) ? history.points : [];
+  const vendors = Array.isArray(history?.vendors) ? history.vendors : [];
+  if (!points.length || !vendors.length) return [];
+
+  const top = vendors.slice(0, limit).filter((v) => v?.name);
+  const order = new Map(top.map((v, index) => [v.name, index]));
+  const kept = points
+    .filter((p) => order.has(p?.vendor))
+    .map((p) => ({
+      ts: p?.ts ?? '',
+      label: p?.label ?? '',
+      vendor: p?.vendor,
+      share: Number(p?.share) || 0,
+      tokens: Number(p?.tokens) || 0,
+    }));
+
+  return sortByTsThenOrder(kept, 'vendor', order);
 }
