@@ -66,7 +66,6 @@ export default function SettingsSidebarModulesAdmin(props) {
       redemption: true,
       user: true,
       subscription: true,
-      performance: true,
       systemInfo: true,
       setting: true,
     },
@@ -129,8 +128,7 @@ export default function SettingsSidebarModulesAdmin(props) {
         redemption: true,
         user: true,
         subscription: true,
-        performance: true,
-        systemInfo: true,
+          systemInfo: true,
         setting: true,
       },
     };
@@ -211,8 +209,7 @@ export default function SettingsSidebarModulesAdmin(props) {
             redemption: true,
             user: true,
             subscription: true,
-            performance: true,
-            systemInfo: true,
+                  systemInfo: true,
             setting: true,
           },
         };
@@ -289,14 +286,9 @@ export default function SettingsSidebarModulesAdmin(props) {
         },
         { key: 'user', title: t('用户管理'), description: t('用户账户管理') },
         {
-          key: 'performance',
-          title: t('模型性能'),
-          description: t('模型延迟与成功率统计'),
-        },
-        {
           key: 'systemInfo',
           title: t('系统信息'),
-          description: t('多实例状态与后台任务'),
+          description: t('模型性能、多实例状态与后台任务'),
         },
         {
           key: 'setting',

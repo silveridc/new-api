@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React, { lazy, Suspense, useContext, useMemo } from 'react';
-import { Route, Routes, useLocation, useParams } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import Loading from './components/common/ui/Loading';
 import User from './pages/User';
 import { AuthRedirect, PrivateRoute, AdminRoute } from './helpers';
@@ -42,11 +42,9 @@ import Midjourney from './pages/Midjourney';
 import Pricing from './pages/Pricing';
 import Task from './pages/Task';
 // 新增：任务插件管理页、审计页（lazy 路由）
-const TaskPlugins = lazy(() => import('./pages/TaskPlugins'));
 const Audit = lazy(() => import('./pages/Audit'));
 // 新增：排行榜页、模型性能页、系统信息页（lazy 路由）
 const Rankings = lazy(() => import('./pages/Rankings'));
-const Performance = lazy(() => import('./pages/Performance'));
 const SystemInfo = lazy(() => import('./pages/SystemInfo'));
 import ModelPage from './pages/Model';
 import ModelDeploymentPage from './pages/ModelDeployment';
@@ -338,7 +336,11 @@ function App() {
           }
         />
         {/* 新增：任务插件管理页（管理员） */}
-        <Route path='/console/task-plugins' element={<AdminRoute><Suspense fallback={<Loading></Loading>} key={location.pathname}><TaskPlugins /></Suspense></AdminRoute>} />
+        {/* 任务插件已并入系统设置页（?tab=taskPlugins），旧地址重定向 */}
+        <Route
+          path='/console/task-plugins'
+          element={<Navigate to='/console/setting?tab=taskPlugins' replace />}
+        />
         {/* 新增：审计页（self 视角对所有登录用户开放） */}
         <Route path='/console/audit' element={<PrivateRoute><Suspense fallback={<Loading></Loading>} key={location.pathname}><Audit /></Suspense></PrivateRoute>} />
         {/* 新增：排行榜页（顶栏入口；requireAuth 开启时需登录，与 /pricing 一致） */}
@@ -359,7 +361,11 @@ function App() {
           }
         />
         {/* 新增：模型性能页（管理员） */}
-        <Route path='/console/performance' element={<AdminRoute><Suspense fallback={<Loading></Loading>} key={location.pathname}><Performance /></Suspense></AdminRoute>} />
+        {/* 模型性能已并入系统信息页，旧地址重定向 */}
+        <Route
+          path='/console/performance'
+          element={<Navigate to='/console/system-info' replace />}
+        />
         {/* 新增：系统信息与后台任务页（Root，页面内二次校验 isRoot） */}
         <Route path='/console/system-info' element={<AdminRoute><Suspense fallback={<Loading></Loading>} key={location.pathname}><SystemInfo /></Suspense></AdminRoute>} />
         <Route

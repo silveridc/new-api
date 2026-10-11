@@ -4297,6 +4297,8 @@
     "30 天": "30 days",
     "90 天": "90 days",
     "365 天": "365 days",
-    "已保存": "Saved"
+    "已保存": "Saved",
+    "查看模型性能、多实例部署状态与跨实例执行的后台系统任务。": "View model performance, multi-instance deployment status, and background system tasks.",
+    "实例与后台任务管理仅 Root 可见。": "Instance and background task management are visible to Root only."
   }
 }

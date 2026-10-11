@@ -34,9 +34,11 @@ import {
   CreditCard,
   Server,
   Activity,
+  Puzzle,
 } from 'lucide-react';
 
 import SystemSetting from '../../components/settings/SystemSetting';
+import TaskPluginsPanel from '../TaskPlugins/TaskPluginsPanel';
 import { isRoot } from '../../helpers';
 import OtherSetting from '../../components/settings/OtherSetting';
 import OperationSetting from '../../components/settings/OperationSetting';
@@ -177,6 +179,17 @@ const Setting = () => {
       ),
       content: <OtherSetting />,
       itemKey: 'other',
+    });
+    panes.push({
+      tab: (
+        <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <Puzzle size={18} />
+          {t('任务插件')}
+        </span>
+      ),
+      // 任务插件接口为 RootAuth，与本页其余设置 Tab 的权限一致
+      content: <TaskPluginsPanel />,
+      itemKey: 'taskPlugins',
     });
   }
   const onChangeTab = (key) => {

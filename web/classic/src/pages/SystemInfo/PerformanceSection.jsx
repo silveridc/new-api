@@ -34,7 +34,7 @@ import {
   Tag,
   Typography,
 } from '@douyinfe/semi-ui';
-import { IconDelete, IconRefresh } from '@douyinfe/semi-icons';
+import { IconRefresh } from '@douyinfe/semi-icons';
 import { isRoot, showError, showSuccess } from '../../helpers';
 import {
   PERF_HOURS_OPTIONS,
@@ -229,7 +229,7 @@ function SystemPerformanceSection() {
   );
 }
 
-export default function Performance() {
+export default function PerformanceSection() {
   const { t } = useTranslation();
   const [hours, setHours] = useState(DEFAULT_PERF_HOURS);
   const [loading, setLoading] = useState(false);
@@ -279,7 +279,7 @@ export default function Performance() {
   ];
 
   return (
-    <div className='mt-[60px] px-2 pb-6'>
+    <>
       <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
         <Col xs={24} sm={16}>
           <Title heading={4}>{t('模型性能')}</Title>
@@ -360,6 +360,6 @@ export default function Performance() {
 
         {isRoot() ? <SystemPerformanceSection /> : null}
       </Spin>
-    </div>
+    </>
   );
 }

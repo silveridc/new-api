@@ -20,6 +20,7 @@ For commercial licensing, please contact support@quantumnous.com
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  Banner,
   Button,
   Card,
   Col,
@@ -35,7 +36,7 @@ import {
 } from '@douyinfe/semi-ui';
 import { IconDelete, IconRefresh } from '@douyinfe/semi-icons';
 import { isRoot, showError, showSuccess, timestamp2string } from '../../helpers';
-import Forbidden from '../Forbidden';
+import PerformanceSection from './PerformanceSection';
 import {
   SYSTEM_TASK_STATUS_OPTIONS,
   SYSTEM_TASK_SCOPE,
@@ -480,27 +481,32 @@ function TasksPanel() {
 
 export default function SystemInfo() {
   const { t } = useTranslation();
-  // /api/system-info 与 /api/system-task 均为 RootAuth；非 root 直接显示 403。
-  if (!isRoot()) {
-    return <Forbidden />;
-  }
+  // perf-metrics 为用户级接口（管理员可见）；实例与后台任务接口为
+  // RootAuth，仅 root 渲染对应面板。
+  const root = isRoot();
   return (
     <div className='mt-[60px] px-2 pb-6'>
       <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
         <Col xs={24}>
-          <Title heading={4}>
-            {t('系统信息')}
-            <Tag color='red' style={{ marginLeft: 8 }}>
-              Root
-            </Tag>
-          </Title>
+          <Title heading={4}>{t('系统信息')}</Title>
           <Text type='tertiary' size='small'>
-            {t('查看多实例部署状态与跨实例执行的后台系统任务。')}
+            {t('查看模型性能、多实例部署状态与跨实例执行的后台系统任务。')}
           </Text>
         </Col>
       </Row>
-      <InstancesPanel />
-      <TasksPanel />
+      <PerformanceSection />
+      {root ? (
+        <>
+          <InstancesPanel />
+          <TasksPanel />
+        </>
+      ) : (
+        <Banner
+          type='info'
+          fullMode={false}
+          description={t('实例与后台任务管理仅 Root 可见。')}
+        />
+      )}
     </div>
   );
 }

@@ -21,7 +21,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getLucideIcon } from '../../helpers/render';
-import { ChevronLeft, Gauge, Puzzle, ScrollText, ServerCog } from 'lucide-react';
+import { ChevronLeft, ScrollText, ServerCog } from 'lucide-react';
 import { useSidebarCollapsed } from '../../hooks/common/useSidebarCollapsed';
 import { useSidebar } from '../../hooks/common/useSidebar';
 import { useMinimumLoadingTime } from '../../hooks/common/useMinimumLoadingTime';
@@ -32,9 +32,7 @@ import { Nav, Divider, Button } from '@douyinfe/semi-ui';
 
 // 新增页面的本地图标映射（避免改动 helpers/render.jsx）
 const LOCAL_ICONS = {
-  taskPlugins: Puzzle,
   audit: ScrollText,
-  performance: Gauge,
   systemInfo: ServerCog,
 };
 
@@ -72,9 +70,7 @@ const routerMap = {
   detail: '/console',
   pricing: '/pricing',
   task: '/console/task',
-  taskPlugins: '/console/task-plugins',
   audit: '/console/audit',
-  performance: '/console/performance',
   systemInfo: '/console/system-info',
   models: '/console/models',
   deployment: '/console/deployment',
@@ -215,28 +211,16 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         className: isAdmin() ? '' : 'tableHiddle',
       },
       {
-        text: t('任务插件'),
-        itemKey: 'taskPlugins',
-        to: '/console/task-plugins',
-        className: isAdmin() ? '' : 'tableHiddle',
-      },
-      {
         text: t('审计日志'),
         itemKey: 'audit',
         to: '/console/audit',
         className: isAdmin() ? '' : 'tableHiddle',
       },
       {
-        text: t('模型性能'),
-        itemKey: 'performance',
-        to: '/console/performance',
-        className: isAdmin() ? '' : 'tableHiddle',
-      },
-      {
         text: t('系统信息'),
         itemKey: 'systemInfo',
         to: '/console/system-info',
-        className: isRoot() ? '' : 'tableHiddle',
+        className: isAdmin() ? '' : 'tableHiddle',
       },
       {
         text: t('系统设置'),
