@@ -159,7 +159,7 @@ const AuditPanel = () => {
       {
         title: t('时间'),
         dataIndex: 'created_at',
-        width: 170,
+        width: 150,
         render: (value) => (
           <span className='font-mono text-xs'>
             {value ? timestamp2string(value) : '-'}
@@ -171,7 +171,7 @@ const AuditPanel = () => {
       list.push({
         title: t('用户'),
         dataIndex: 'username',
-        width: 110,
+        width: 100,
         render: (value, record) => (
           <span>
             {value || '-'}
@@ -189,10 +189,11 @@ const AuditPanel = () => {
       {
         title: t('事件'),
         dataIndex: 'content',
+        // 列级 ellipsis 让 Semi 采用 fixed 布局：无宽度列自动分摊剩余空间，
+        // 文案超长时省略并悬浮展示全文
+        ellipsis: true,
         render: (value, record) => (
-          <Typography.Text
-            ellipsis={{ showTooltip: true }}
-            style={{ maxWidth: 320 }}
+          <Typography.Text ellipsis={{ showTooltip: true }}>
           >
             {value || record.action || '-'}
           </Typography.Text>
@@ -223,12 +224,12 @@ const AuditPanel = () => {
       {
         title: t('路由'),
         dataIndex: 'route',
-        width: 200,
+        // 弹性列：与事件列一起分摊表格剩余宽度，超长省略并悬浮展示
+        ellipsis: true,
         render: (value) => (
           <Typography.Text
             mono
             ellipsis={{ showTooltip: true }}
-            style={{ maxWidth: 200 }}
           >
             {value || '—'}
           </Typography.Text>
@@ -382,7 +383,7 @@ const AuditPanel = () => {
         rowKey='event_id'
         loading={loading}
         size='middle'
-        scroll={{ x: 'max-content' }}
+        tableLayout='fixed'
         empty={t('暂无审计记录')}
         pagination={{
           currentPage: page,
