@@ -209,6 +209,7 @@ const EditChannelModal = (props) => {
     responses_websocket_enabled: false,
     http_protocol: 'auto',
     http2_connection_shards: 1,
+    tls_insecure_skip_verify: false,
     task_plugin_key: '',
     task_extend_plugin_keys: [],
     advanced_custom: '',
@@ -1005,6 +1006,7 @@ const EditChannelModal = (props) => {
         responses_websocket_enabled: data.responses_websocket_enabled,
         http_protocol: data.http_protocol,
         http2_connection_shards: data.http2_connection_shards,
+        tls_insecure_skip_verify: data.tls_insecure_skip_verify || false,
         task_plugin_key: data.task_plugin_key,
         task_extend_plugin_keys: data.task_extend_plugin_keys,
         system_prompt: data.system_prompt,
@@ -1425,6 +1427,7 @@ const EditChannelModal = (props) => {
       responses_websocket_enabled: false,
       http_protocol: 'auto',
       http2_connection_shards: 1,
+      tls_insecure_skip_verify: false,
       task_plugin_key: '',
       task_extend_plugin_keys: [],
       system_prompt: '',
@@ -1927,6 +1930,7 @@ const EditChannelModal = (props) => {
     delete localInputs.responses_websocket_enabled;
     delete localInputs.http_protocol;
     delete localInputs.http2_connection_shards;
+    delete localInputs.tls_insecure_skip_verify;
     delete localInputs.task_plugin_key;
     delete localInputs.task_extend_plugin_keys;
     delete localInputs.advanced_custom;
@@ -2631,6 +2635,15 @@ const EditChannelModal = (props) => {
                     onChange={(value) => handleChannelSettingsChange('http2_connection_shards', value || 1)}
                     style={{ width: '100%' }}
                     extraText={t('将 HTTP/2 流量分散到多条独立连接（1-8）；HTTP/1.1 模式下固定为 1')}
+                  />
+
+                  <Form.Switch
+                    field='tls_insecure_skip_verify'
+                    label={t('跳过上游 TLS 证书校验')}
+                    checkedText={t('开')}
+                    uncheckedText={t('关')}
+                    onChange={(value) => handleChannelSettingsChange('tls_insecure_skip_verify', value === true)}
+                    extraText={t('接受自签名或校验失败的上游证书，仅用于可信内网环境，开启有中间人风险')}
                   />
 
                   {inputs.type === CHANNEL_TYPE_TASK_PLUGIN && (

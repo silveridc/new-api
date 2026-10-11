@@ -21,8 +21,24 @@ import {
   STORAGE_KEYS,
   DEFAULT_CONFIG,
 } from '../../constants/playground.constants';
+import { getUserIdFromLocalStorage } from '../../helpers';
 
 const MESSAGES_STORAGE_KEY = 'playground_messages';
+
+/**
+ * 账号隔离的存储键：`<key>:<userId>`。每次读写都会清除无归属的旧固定键，
+ * 避免换账号后看到上一个人的对话（上游 06dd76a9d 同款处理）；未登录返回
+ * null，此时读写一律跳过。
+ */
+function getStorageKey(key) {
+  localStorage.removeItem(STORAGE_KEYS.CONFIG);
+  localStorage.removeItem(MESSAGES_STORAGE_KEY);
+  const userId = Number(getUserIdFromLocalStorage());
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return null;
+  }
+  return `${key}:${userId}`;
+}
 
 /**
  * 保存配置到 localStorage
@@ -34,7 +50,9 @@ export const saveConfig = (config) => {
       ...config,
       timestamp: new Date().toISOString(),
     };
-    localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(configToSave));
+    const storageKey = getStorageKey(STORAGE_KEYS.CONFIG);
+    if (!storageKey) return;
+    localStorage.setItem(storageKey, JSON.stringify(configToSave));
   } catch (error) {
     console.error('保存配置失败:', error);
   }
@@ -50,7 +68,9 @@ export const saveMessages = (messages) => {
       messages,
       timestamp: new Date().toISOString(),
     };
-    localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(messagesToSave));
+    const storageKey = getStorageKey(STORAGE_KEYS.MESSAGES);
+    if (!storageKey) return;
+    localStorage.setItem(storageKey, JSON.stringify(messagesToSave));
   } catch (error) {
     console.error('保存消息失败:', error);
   }
@@ -62,7 +82,9 @@ export const saveMessages = (messages) => {
  */
 export const loadConfig = () => {
   try {
-    const savedConfig = localStorage.getItem(STORAGE_KEYS.CONFIG);
+    const storageKey = getStorageKey(STORAGE_KEYS.CONFIG);
+    if (!storageKey) return DEFAULT_CONFIG;
+    const savedConfig = localStorage.getItem(storageKey);
     if (savedConfig) {
       const parsedConfig = JSON.parse(savedConfig);
       const parsedMaxTokens = parseInt(parsedConfig?.inputs?.max_tokens, 10);
@@ -102,7 +124,9 @@ export const loadConfig = () => {
  */
 export const loadMessages = () => {
   try {
-    const savedMessages = localStorage.getItem(STORAGE_KEYS.MESSAGES);
+    const storageKey = getStorageKey(STORAGE_KEYS.MESSAGES);
+    if (!storageKey) return null;
+    const savedMessages = localStorage.getItem(storageKey);
     if (savedMessages) {
       const parsedMessages = JSON.parse(savedMessages);
       return parsedMessages.messages || null;
@@ -119,8 +143,8 @@ export const loadMessages = () => {
  */
 export const clearConfig = () => {
   try {
-    localStorage.removeItem(STORAGE_KEYS.CONFIG);
-    localStorage.removeItem(STORAGE_KEYS.MESSAGES); // 同时清除消息
+    const configKey = getStorageKey(STORAGE_KEYS.CONFIG);
+    if (configKey) localStorage.removeItem(configKey);
   } catch (error) {
     console.error('清除配置失败:', error);
   }
@@ -131,7 +155,8 @@ export const clearConfig = () => {
  */
 export const clearMessages = () => {
   try {
-    localStorage.removeItem(STORAGE_KEYS.MESSAGES);
+    const messagesKey = getStorageKey(STORAGE_KEYS.MESSAGES);
+    if (messagesKey) localStorage.removeItem(messagesKey);
   } catch (error) {
     console.error('清除消息失败:', error);
   }
@@ -143,7 +168,8 @@ export const clearMessages = () => {
  */
 export const hasStoredConfig = () => {
   try {
-    return localStorage.getItem(STORAGE_KEYS.CONFIG) !== null;
+    const configKey = getStorageKey(STORAGE_KEYS.CONFIG);
+    return configKey !== null && localStorage.getItem(configKey) !== null;
   } catch (error) {
     console.error('检查配置失败:', error);
     return false;
@@ -156,7 +182,9 @@ export const hasStoredConfig = () => {
  */
 export const getConfigTimestamp = () => {
   try {
-    const savedConfig = localStorage.getItem(STORAGE_KEYS.CONFIG);
+    const storageKey = getStorageKey(STORAGE_KEYS.CONFIG);
+    if (!storageKey) return DEFAULT_CONFIG;
+    const savedConfig = localStorage.getItem(storageKey);
     if (savedConfig) {
       const parsedConfig = JSON.parse(savedConfig);
       return parsedConfig.timestamp || null;

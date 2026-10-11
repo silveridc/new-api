@@ -18,6 +18,26 @@ class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     console.error('[ErrorBoundary]', error, errorInfo);
+    // 懒加载 chunk 失效（发版后旧资源 404）：自动整页重载一次即可恢复。
+    // sessionStorage 按错误消息打标记防死循环，持续失败仍显示错误页
+    // （与新版前端 general-error 的处理一致）。
+    if (error instanceof Error) {
+      const isChunkError =
+        error.name === 'ChunkLoadError' ||
+        /^Loading (CSS )?chunk .+ failed\./.test(error.message || '');
+      if (isChunkError) {
+        try {
+          const marker = 'error_boundary_reload:' + error.message;
+          if (!sessionStorage.getItem(marker)) {
+            sessionStorage.setItem(marker, '1');
+            window.location.reload();
+            return;
+          }
+        } catch (storageError) {
+          // sessionStorage 不可用时不自动重载，交给手动刷新
+        }
+      }
+    }
   }
 
   render() {

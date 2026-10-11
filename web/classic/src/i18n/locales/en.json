@@ -4299,6 +4299,15 @@
     "365 天": "365 days",
     "已保存": "Saved",
     "查看模型性能、多实例部署状态与跨实例执行的后台系统任务。": "View model performance, multi-instance deployment status, and background system tasks.",
-    "实例与后台任务管理仅 Root 可见。": "Instance and background task management are visible to Root only."
+    "实例与后台任务管理仅 Root 可见。": "Instance and background task management are visible to Root only.",
+    "流量分析": "Flow Analysis",
+    "按消费": "By quota",
+    "按调用次数": "By requests",
+    "近 30 天": "Last 30 days",
+    "点击阶段名可隐藏/显示；合计消费 {{quota}} · {{times}} 次调用": "Click a stage to toggle it; total quota {{quota}} · {{times}} requests",
+    "获取流量数据失败": "Failed to load flow data",
+    "当前时间范围内暂无调用数据": "No request data for the selected time range",
+    "跳过上游 TLS 证书校验": "Skip upstream TLS verification",
+    "接受自签名或校验失败的上游证书，仅用于可信内网环境，开启有中间人风险": "Accept upstream certificates that fail verification (e.g. self-signed). For trusted internal networks only — enables man-in-the-middle risk."
   }
 }

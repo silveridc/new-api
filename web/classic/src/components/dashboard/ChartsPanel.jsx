@@ -21,6 +21,7 @@ import React from 'react';
 import { Card, Tabs, TabPane } from '@douyinfe/semi-ui';
 import { PieChart } from 'lucide-react';
 import { VChart } from '@visactor/react-vchart';
+import FlowPanel from './FlowPanel';
 
 const ChartsPanel = ({
   activeChartTab,
@@ -63,6 +64,8 @@ const ChartsPanel = ({
             {isAdminUser && (
               <TabPane tab={<span>{t('用户消耗趋势')}</span>} itemKey='6' />
             )}
+            {/* 流量分析所有用户可见（普通用户走 self 接口） */}
+            <TabPane tab={<span>{t('流量分析')}</span>} itemKey='7' />
           </Tabs>
         </div>
       }
@@ -86,6 +89,9 @@ const ChartsPanel = ({
         )}
         {activeChartTab === '6' && isAdminUser && (
           <VChart spec={spec_user_trend} option={CHART_CONFIG} />
+        )}
+        {activeChartTab === '7' && (
+          <FlowPanel isAdminUser={isAdminUser} t={t} />
         )}
       </div>
     </Card>
