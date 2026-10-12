@@ -97,3 +97,48 @@ func TestProcessChannelErrorUsesSnapshotWithoutLeakingChannelMetadata(t *testing
 		assert.NotContains(t, userOther, key)
 	}
 }
+
+// TestProcessChannelErrorMarksErrorLoggedForFallback 验证上游失败记录错误日志后
+// 会打上已记录标记，PreRelay 兜底（middleware.RecordRelayRejection）据此去重，
+// 保证一次失败只落一条日志。
+func TestProcessChannelErrorMarksErrorLoggedForFallback(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	previousDB, previousLogDB := model.DB, model.LOG_DB
+	previousMainType, previousLogType := common.MainDatabaseType(), common.LogDatabaseType()
+	previousErrorLog := constant.ErrorLogEnabled
+	previousRedisEnabled := common.RedisEnabled
+	previousMemoryCache := common.MemoryCacheEnabled
+	t.Cleanup(func() {
+		model.DB, model.LOG_DB = previousDB, previousLogDB
+		common.SetDatabaseTypes(previousMainType, previousLogType)
+		constant.ErrorLogEnabled = previousErrorLog
+		common.RedisEnabled = previousRedisEnabled
+		common.MemoryCacheEnabled = previousMemoryCache
+	})
+
+	database, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	sqlDB, err := database.DB()
+	require.NoError(t, err)
+	sqlDB.SetMaxOpenConns(1)
+	t.Cleanup(func() { require.NoError(t, sqlDB.Close()) })
+	require.NoError(t, database.AutoMigrate(&model.User{}, &model.Log{}))
+	model.DB, model.LOG_DB = database, database
+	common.SetDatabaseTypes(common.DatabaseTypeSQLite, common.DatabaseTypeSQLite)
+	common.RedisEnabled, common.MemoryCacheEnabled = false, false
+	constant.ErrorLogEnabled = true
+	require.NoError(t, database.Create(&model.User{Id: 8, Username: "fallback-owner", Group: "default"}).Error)
+
+	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	ctx.Set("id", 8)
+	ctx.Set("username", "fallback-owner")
+	ctx.Set("group", "default")
+	apiErr := types.NewOpenAIError(errors.New("upstream failed"), types.ErrorCodeBadResponseStatusCode, http.StatusBadGateway)
+	processChannelError(ctx, types.ChannelError{ChannelId: 303, ChannelName: "upstream-channel"}, apiErr, nil)
+
+	assert.True(t, common.GetContextKeyBool(ctx, constant.ContextKeyRelayErrorLogged))
+	var stored []model.Log
+	require.NoError(t, database.Find(&stored).Error)
+	require.Len(t, stored, 1)
+}

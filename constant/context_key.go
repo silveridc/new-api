@@ -80,4 +80,14 @@ const (
 	ContextKeyTokenAuditParams ContextKey = "token_audit_params"
 	// ContextKeyTokenAuditSucceeded disambiguates token responses that exceed the audit buffer.
 	ContextKeyTokenAuditSucceeded ContextKey = "token_audit_succeeded"
+
+	// ContextKeyRelayAttempted marks that the request passed relay channel
+	// selection and actually attempted a relay call. Auth/distribution/rate-limit
+	// rejections happen before it, so they are recorded by the relay error-log
+	// fallback in middleware.FinishRelayErrorLog rather than by the channel
+	// error path, which would otherwise duplicate the entry.
+	ContextKeyRelayAttempted ContextKey = "relay_attempted"
+	// ContextKeyRelayErrorLogged marks that this request already wrote an error
+	// log, so the fallback in FinishRelayErrorLog skips it.
+	ContextKeyRelayErrorLogged ContextKey = "relay_error_logged"
 )
