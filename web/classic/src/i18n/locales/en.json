@@ -4308,6 +4308,20 @@
     "获取流量数据失败": "Failed to load flow data",
     "当前时间范围内暂无调用数据": "No request data for the selected time range",
     "跳过上游 TLS 证书校验": "Skip upstream TLS verification",
-    "接受自签名或校验失败的上游证书，仅用于可信内网环境，开启有中间人风险": "Accept upstream certificates that fail verification (e.g. self-signed). For trusted internal networks only — enables man-in-the-middle risk."
+    "接受自签名或校验失败的上游证书，仅用于可信内网环境，开启有中间人风险": "Accept upstream certificates that fail verification (e.g. self-signed). For trusted internal networks only — enables man-in-the-middle risk.",
+    "Auto 分组顺序": "Auto group order",
+    "继承全局 Auto 顺序（共 {{count}} 个分组）": "Inheriting the global Auto order ({{count}} groups)",
+    "已选 {{count}} / {{max}} 个分组": "Selected {{count}} / {{max}} groups",
+    "恢复全局 Auto": "Restore global Auto",
+    "添加 Auto 分组": "Add Auto group",
+    "最多可选 {{max}} 个分组": "At most {{max}} groups",
+    "全局 Auto 顺序中暂无可用分组": "No available groups in the global Auto order",
+    "当前无有效的自定义 Auto 分组，请添加分组或恢复全局 Auto": "No valid custom Auto groups. Add a group or restore global Auto.",
+    "上移": "Move up",
+    "下移": "Move down",
+    "选择并排序该令牌依次尝试的分组；留空则继承全局 Auto 顺序": "Choose and order the groups this token will try; leave empty to inherit the global Auto order.",
+    "请至少选择一个 Auto 分组，或恢复为全局 Auto": "Select at least one Auto group, or restore the global Auto.",
+    "按今日/本周/本月/本年展示用户与模型用量排行": "Shows user and model usage rankings by today / week / month / year",
+    "开启后未登录用户无法访问排行榜": "When enabled, unauthenticated users cannot access the rankings page"
   }
 }

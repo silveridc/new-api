@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useEffect, useState, useContext, useRef } from 'react';
+import React, { useEffect, useState, useContext, useRef, useMemo } from 'react';
 import {
   API,
   showError,
@@ -56,6 +56,13 @@ import {
 } from '@douyinfe/semi-icons';
 import { useTranslation } from 'react-i18next';
 import { StatusContext } from '../../../../context/Status';
+import TokenAutoGroupEditor from './TokenAutoGroupEditor';
+import {
+  getTokenAutoGroups,
+  deriveTokenAutoGroupsForm,
+  buildTokenAutoGroupsPayload,
+  DEFAULT_MAX_TOKEN_AUTO_GROUPS,
+} from '../../../../services/tokenAutoGroups';
 
 const { Text, Title } = Typography;
 
@@ -67,6 +74,25 @@ const EditTokenModal = (props) => {
   const formApiRef = useRef(null);
   const [models, setModels] = useState([]);
   const [groups, setGroups] = useState([]);
+  // 令牌 Auto 分组：全局顺序（名称）、单令牌上限，以及本令牌的编辑态
+  // （mode: inherit 继承全局 / custom 自定义链；groups 为自定义时的有序分组）。
+  // 用组件态而非表单字段承载——Semi setValues(isOverride=false) 不会把
+  // 未注册为 Form.Field 的键写进 formState，故这两项不走表单。
+  const [autoGroupOrder, setAutoGroupOrder] = useState([]);
+  const [autoGroupMaxCount, setAutoGroupMaxCount] = useState(
+    DEFAULT_MAX_TOKEN_AUTO_GROUPS,
+  );
+  const [autoGroupsForm, setAutoGroupsForm] = useState({
+    mode: 'inherit',
+    groups: [],
+  });
+  const autoGroupCandidates = useMemo(
+    () =>
+      groups
+        .filter((g) => g.value !== 'auto')
+        .map((g) => ({ value: g.value, label: g.value, ratio: g.ratio })),
+    [groups],
+  );
   const [showQuotaInput, setShowQuotaInput] = useState(false);
   const isEdit = props.editingToken.id !== undefined;
 
@@ -156,6 +182,17 @@ const EditTokenModal = (props) => {
     }
   };
 
+  const loadAutoGroups = async () => {
+    try {
+      const { groups: order, maxCount } = await getTokenAutoGroups();
+      setAutoGroupOrder(order);
+      setAutoGroupMaxCount(maxCount);
+    } catch (error) {
+      // Auto 分组配置拉取失败不应阻塞令牌编辑，退回默认（继承全局）
+      console.error('加载 Auto 分组配置失败:', error);
+    }
+  };
+
   const loadToken = async () => {
     setLoading(true);
     let res = await API.get(`/api/token/${props.editingToken.id}`);
@@ -172,6 +209,21 @@ const EditTokenModal = (props) => {
       data.remain_amount = Number(
         quotaToDisplayAmount(data.remain_quota || 0).toFixed(6),
       );
+      // 由后端 auto_groups 推导本令牌的 Auto 分组编辑态（组件态，非表单字段）。
+      // groups 未加载完时 availableNames 为空，deriveTokenAutoGroupsForm 会跳过
+      // 可选性过滤、不误删，避免与 loadGroups 的加载竞态。
+      const availableNames = groups
+        .filter((g) => g.value !== 'auto')
+        .map((g) => g.value);
+      const derived = deriveTokenAutoGroupsForm(
+        data,
+        availableNames,
+        autoGroupMaxCount,
+      );
+      setAutoGroupsForm({
+        mode: derived.auto_groups_mode,
+        groups: derived.auto_groups,
+      });
       if (formApiRef.current) {
         formApiRef.current.setValues({ ...getInitValues(), ...data });
       }
@@ -189,6 +241,7 @@ const EditTokenModal = (props) => {
     }
     loadModels();
     loadGroups();
+    loadAutoGroups();
   }, [props.editingToken.id]);
 
   useEffect(() => {
@@ -196,9 +249,11 @@ const EditTokenModal = (props) => {
       if (isEdit) {
         loadToken();
       } else {
+        setAutoGroupsForm({ mode: 'inherit', groups: [] });
         formApiRef.current?.setValues(getInitValues());
       }
     } else {
+      setAutoGroupsForm({ mode: 'inherit', groups: [] });
       formApiRef.current?.reset();
     }
   }, [props.visiable, props.editingToken.id]);
@@ -217,8 +272,24 @@ const EditTokenModal = (props) => {
 
   const submit = async (values) => {
     setLoading(true);
+    // 自定义 Auto 分组却一个都没选：等价于“什么都不做”，提示用户显式选择或恢复全局
+    if (
+      values.group === 'auto' &&
+      autoGroupsForm.mode === 'custom' &&
+      autoGroupsForm.groups.length === 0
+    ) {
+      showError(t('请至少选择一个 Auto 分组，或恢复为全局 Auto'));
+      setLoading(false);
+      return;
+    }
     if (isEdit) {
       let { tokenCount: _tc, ...localInputs } = values;
+      // auto_groups 由组件态派生（group 非 auto 或继承模式时为 []，即清除/继承）
+      localInputs.auto_groups = buildTokenAutoGroupsPayload({
+        group: values.group,
+        auto_groups_mode: autoGroupsForm.mode,
+        auto_groups: autoGroupsForm.groups,
+      });
       localInputs.remain_quota = localInputs.unlimited_quota
         ? 0
         : displayAmountToQuota(localInputs.remain_amount);
@@ -255,6 +326,11 @@ const EditTokenModal = (props) => {
       let successCount = 0;
       for (let i = 0; i < count; i++) {
         let { tokenCount: _tc, ...localInputs } = values;
+        localInputs.auto_groups = buildTokenAutoGroupsPayload({
+          group: values.group,
+          auto_groups_mode: autoGroupsForm.mode,
+          auto_groups: autoGroupsForm.groups,
+        });
         const baseName =
           values.name.trim() === '' ? 'default' : values.name.trim();
         if (i !== 0 || values.name.trim() === '') {
@@ -416,6 +492,28 @@ const EditTokenModal = (props) => {
                       display: values.group === 'auto' ? 'block' : 'none',
                     }}
                   >
+                    <Form.Slot label={t('Auto 分组顺序')}>
+                      <TokenAutoGroupEditor
+                        value={autoGroupsForm.groups}
+                        mode={autoGroupsForm.mode}
+                        maxCount={autoGroupMaxCount}
+                        candidateOptions={autoGroupCandidates}
+                        globalOrder={autoGroupOrder}
+                        onChange={({ groups: g, mode: m }) =>
+                          setAutoGroupsForm({ groups: g, mode: m })
+                        }
+                        t={t}
+                      />
+                      <Text
+                        type='tertiary'
+                        size='small'
+                        style={{ display: 'block', marginTop: 4 }}
+                      >
+                        {t(
+                          '选择并排序该令牌依次尝试的分组；留空则继承全局 Auto 顺序',
+                        )}
+                      </Text>
+                    </Form.Slot>
                     <Form.Switch
                       field='cross_group_retry'
                       label={t('跨分组重试')}
@@ -552,7 +650,10 @@ const EditTokenModal = (props) => {
                         ? `▾ ${t('收起原生额度输入')}`
                         : `▸ ${t('使用原生额度输入')}`}
                     </div>
-                    <div style={{ display: showQuotaInput ? 'block' : 'none' }} className='mt-2'>
+                    <div
+                      style={{ display: showQuotaInput ? 'block' : 'none' }}
+                      className='mt-2'
+                    >
                       <Form.InputNumber
                         field='remain_quota'
                         label={t('额度')}
