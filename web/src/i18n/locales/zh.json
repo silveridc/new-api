@@ -6463,6 +6463,7 @@
     "Tokens_usage": "Token",
     "Tokens-only mode will show raw quota values regardless of this toggle.": "Tokens-only 模式将无视此开关显示原始配额值。",
     "Too many active login sessions. On a device where you are already signed in, open Login sessions and use “Sign out other sessions” to revoke them. If you cannot access a signed-in device, reset your password to sign out all sessions.": "活跃登录会话数量已达上限。请在一台已登录的设备上打开“登录会话”，使用“退出其他登录会话”将其撤销。如果无法访问任何已登录设备，请重置密码以退出所有会话。",
+    "Too many email requests. Please wait {{seconds}} seconds and try again.": "邮件发送过于频繁，请等待 {{seconds}} 秒后再试",
     "Too many files. Some were not added.": "文件过多。部分未添加。",
     "Too many incorrect codes. Start email verification again.": "验证码错误次数过多，请重新开始邮箱验证。",
     "Too many login sessions were created recently. Please wait for the rolling window to pass, then try again.": "近期创建的登录会话过多。请等待滚动时间窗口结束后再试。",

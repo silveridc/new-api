@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -288,5 +290,150 @@ func TestGlobalWebRateLimitCountsFrontendFilesInStaticBucket(t *testing.T) {
 		webCount, err := redisServer.Get(redisIPRateLimitKey("GW", clientIP))
 		require.NoError(t, err)
 		assert.Equal(t, "1", webCount)
+	})
+}
+
+// 无鉴权发信接口的三层限流：IP、目标邮箱、全站总量。核心回归点是「换 IP
+// 仍打不动同一个收件人」——修复前只有按 IP 的预算，换 IP 即可继续轰炸。
+func TestEmailSendRateLimitBlocksTargetAcrossIPs(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	previous := struct {
+		enabled bool
+		ipNum   int
+		ipDur   int64
+		toNum   int
+		toDur   int64
+		allNum  int
+		allDur  int64
+	}{
+		common.EmailSendRateLimitEnable,
+		common.EmailSendIPRateLimitNum, common.EmailSendIPRateLimitDuration,
+		common.EmailSendTargetRateLimitNum, common.EmailSendTargetRateLimitDuration,
+		common.EmailSendGlobalRateLimitNum, common.EmailSendGlobalRateLimitDuration,
+	}
+	t.Cleanup(func() {
+		common.EmailSendRateLimitEnable = previous.enabled
+		common.EmailSendIPRateLimitNum, common.EmailSendIPRateLimitDuration = previous.ipNum, previous.ipDur
+		common.EmailSendTargetRateLimitNum, common.EmailSendTargetRateLimitDuration = previous.toNum, previous.toDur
+		common.EmailSendGlobalRateLimitNum, common.EmailSendGlobalRateLimitDuration = previous.allNum, previous.allDur
+	})
+	common.EmailSendRateLimitEnable = true
+	common.EmailSendIPRateLimitNum, common.EmailSendIPRateLimitDuration = 100, 600
+	common.EmailSendTargetRateLimitNum, common.EmailSendTargetRateLimitDuration = 2, 60
+	common.EmailSendGlobalRateLimitNum, common.EmailSendGlobalRateLimitDuration = 100, 600
+
+	t.Run("same recipient is blocked from a new IP", func(t *testing.T) {
+		redisServer, _ := useRateLimitMiniRedis(t)
+		router := gin.New()
+		require.NoError(t, router.SetTrustedProxies(nil))
+		router.GET("/verification", EmailSendRateLimit("email"), func(c *gin.Context) {
+			c.Status(http.StatusNoContent)
+		})
+
+		victim := "/verification?email=Victim%40Example.com"
+		assert.Equal(t, http.StatusNoContent, performRateLimitRequest(router, victim, "192.0.2.80:12345").Code)
+		assert.Equal(t, http.StatusNoContent, performRateLimitRequest(router, victim, "192.0.2.81:12345").Code)
+
+		blocked := performRateLimitRequest(router, victim, "192.0.2.82:12345")
+		assert.Equal(t, http.StatusTooManyRequests, blocked.Code)
+		assert.Equal(t, "60", blocked.Header().Get("Retry-After"))
+		assert.Contains(t, blocked.Body.String(), "Too many email requests.")
+
+		// 大小写与空白归一化到同一个收件人预算
+		assert.Equal(t, http.StatusTooManyRequests,
+			performRateLimitRequest(router, "/verification?email=%20victim@example.com%20", "192.0.2.83:12345").Code)
+
+		// 换一个收件人不受影响，说明拒绝来自收件人维度而不是 IP 维度
+		assert.Equal(t, http.StatusNoContent,
+			performRateLimitRequest(router, "/verification?email=other%40example.com", "192.0.2.82:12345").Code)
+
+		// 明文地址不得出现在限流键里：收件人维度只留 32 位十六进制摘要
+		var recipientKeys []string
+		for _, key := range redisServer.Keys() {
+			assert.NotContains(t, key, "victim")
+			assert.NotContains(t, key, "example.com")
+			assert.Contains(t, key, redisRateLimitNamespace+":email:"+EmailSendRateLimitMark+":")
+			if suffix, found := strings.CutPrefix(key, redisRateLimitNamespace+":email:"+EmailSendRateLimitMark+":to:"); found {
+				assert.Len(t, suffix, 32)
+				assert.Regexp(t, "^[0-9a-f]{32}$", suffix)
+				recipientKeys = append(recipientKeys, key)
+			}
+		}
+		assert.Len(t, recipientKeys, 2, "两个不同的收件人各占一个限流键")
+	})
+
+	t.Run("missing recipient still enforces IP and global budgets", func(t *testing.T) {
+		useRateLimitMiniRedis(t)
+		common.EmailSendIPRateLimitNum, common.EmailSendIPRateLimitDuration = 2, 300
+		t.Cleanup(func() {
+			common.EmailSendIPRateLimitNum, common.EmailSendIPRateLimitDuration = 100, 600
+		})
+		router := gin.New()
+		require.NoError(t, router.SetTrustedProxies(nil))
+		router.GET("/reset_password", EmailSendRateLimit("email"), func(c *gin.Context) {
+			c.Status(http.StatusNoContent)
+		})
+
+		assert.Equal(t, http.StatusNoContent, performRateLimitRequest(router, "/reset_password", "192.0.2.90:12345").Code)
+		assert.Equal(t, http.StatusNoContent, performRateLimitRequest(router, "/reset_password", "192.0.2.90:12345").Code)
+		assert.Equal(t, http.StatusTooManyRequests, performRateLimitRequest(router, "/reset_password", "192.0.2.90:12345").Code)
+		assert.Equal(t, http.StatusNoContent, performRateLimitRequest(router, "/reset_password", "192.0.2.91:12345").Code)
+	})
+
+	t.Run("global budget stops distributed senders", func(t *testing.T) {
+		useRateLimitMiniRedis(t)
+		common.EmailSendGlobalRateLimitNum, common.EmailSendGlobalRateLimitDuration = 3, 600
+		common.EmailSendIPRateLimitNum, common.EmailSendIPRateLimitDuration = 100, 600
+		common.EmailSendTargetRateLimitNum, common.EmailSendTargetRateLimitDuration = 100, 600
+		t.Cleanup(func() {
+			common.EmailSendGlobalRateLimitNum, common.EmailSendGlobalRateLimitDuration = 100, 600
+			common.EmailSendTargetRateLimitNum, common.EmailSendTargetRateLimitDuration = 2, 60
+		})
+		router := gin.New()
+		require.NoError(t, router.SetTrustedProxies(nil))
+		router.GET("/verification", EmailSendRateLimit("email"), func(c *gin.Context) {
+			c.Status(http.StatusNoContent)
+		})
+
+		for i := range 3 {
+			path := "/verification?email=user" + strconv.Itoa(i) + "%40example.com"
+			assert.Equal(t, http.StatusNoContent, performRateLimitRequest(router, path, "198.51.100."+strconv.Itoa(i)+":12345").Code)
+		}
+		assert.Equal(t, http.StatusTooManyRequests,
+			performRateLimitRequest(router, "/verification?email=user9%40example.com", "203.0.113.9:12345").Code)
+	})
+
+	t.Run("disabled switch lets requests through", func(t *testing.T) {
+		useRateLimitMiniRedis(t)
+		common.EmailSendRateLimitEnable = false
+		t.Cleanup(func() { common.EmailSendRateLimitEnable = true })
+		router := gin.New()
+		require.NoError(t, router.SetTrustedProxies(nil))
+		router.GET("/verification", EmailSendRateLimit("email"), func(c *gin.Context) {
+			c.Status(http.StatusNoContent)
+		})
+
+		for range 5 {
+			assert.Equal(t, http.StatusNoContent, performRateLimitRequest(router, "/verification?email=a%40example.com", "192.0.2.95:12345").Code)
+		}
+	})
+
+	t.Run("memory fallback keeps the same three dimensions", func(t *testing.T) {
+		previousRedisEnabled, previousRedisClient := common.RedisEnabled, common.RDB
+		common.RedisEnabled, common.RDB = false, nil
+		t.Cleanup(func() { common.RedisEnabled, common.RDB = previousRedisEnabled, previousRedisClient })
+
+		router := gin.New()
+		require.NoError(t, router.SetTrustedProxies(nil))
+		router.GET("/verification", EmailSendRateLimit("email"), func(c *gin.Context) {
+			c.Status(http.StatusNoContent)
+		})
+
+		victim := "/verification?email=memory%40example.com"
+		assert.Equal(t, http.StatusNoContent, performRateLimitRequest(router, victim, "192.0.2.100:12345").Code)
+		assert.Equal(t, http.StatusNoContent, performRateLimitRequest(router, victim, "192.0.2.101:12345").Code)
+		blocked := performRateLimitRequest(router, victim, "192.0.2.102:12345")
+		assert.Equal(t, http.StatusTooManyRequests, blocked.Code)
+		assert.Equal(t, "60", blocked.Header().Get("Retry-After"))
 	})
 }

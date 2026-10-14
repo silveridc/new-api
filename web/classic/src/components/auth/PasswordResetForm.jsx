@@ -90,17 +90,22 @@ const PasswordResetForm = () => {
     }
     setDisableButton(true);
     setLoading(true);
-    const res = await API.get(
-      `/api/reset_password?email=${email}&turnstile=${turnstileToken}`,
-    );
-    const { success, message } = res.data;
-    if (success) {
-      showSuccess(t('重置邮件发送成功，请检查邮箱！'));
-      setInputs({ ...inputs, email: '' });
-    } else {
-      showError(message);
+    try {
+      const res = await API.get(
+        `/api/reset_password?email=${email}&turnstile=${turnstileToken}`,
+      );
+      const { success, message } = res.data;
+      if (success) {
+        showSuccess(t('重置邮件发送成功，请检查邮箱！'));
+        setInputs({ ...inputs, email: '' });
+      } else {
+        showError(message);
+      }
+    } catch (error) {
+      // 失败提示由请求拦截器统一展示（含限流响应里的剩余等待时间）
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   return (

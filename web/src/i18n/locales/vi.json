@@ -6463,6 +6463,7 @@
     "Tokens_usage": "Token",
     "Tokens-only mode will show raw quota values regardless of this toggle.": "Chế độ Tokens-only sẽ hiển thị giá trị quota thô bất kể tùy chọn này.",
     "Too many active login sessions. On a device where you are already signed in, open Login sessions and use “Sign out other sessions” to revoke them. If you cannot access a signed-in device, reset your password to sign out all sessions.": "Đã đạt giới hạn phiên đăng nhập đang hoạt động. Trên một thiết bị đã đăng nhập, hãy mở “Phiên đăng nhập” và dùng “Đăng xuất các phiên khác” để thu hồi chúng. Nếu bạn không thể truy cập thiết bị nào đã đăng nhập, hãy đặt lại mật khẩu để đăng xuất khỏi tất cả phiên.",
+    "Too many email requests. Please wait {{seconds}} seconds and try again.": "Quá nhiều yêu cầu gửi email. Vui lòng đợi {{seconds}} giây rồi thử lại.",
     "Too many files. Some were not added.": "Quá nhiều tệp. Một số không được thêm.",
     "Too many incorrect codes. Start email verification again.": "Nhập sai mã quá nhiều lần. Vui lòng bắt đầu xác minh email lại.",
     "Too many login sessions were created recently. Please wait for the rolling window to pass, then try again.": "Gần đây đã tạo quá nhiều phiên đăng nhập. Vui lòng chờ cửa sổ thời gian trượt kết thúc rồi thử lại.",

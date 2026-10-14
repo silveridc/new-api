@@ -141,6 +141,15 @@ func InitEnv() {
 	SearchRateLimitEnable = GetEnvOrDefaultBool("SEARCH_RATE_LIMIT_ENABLE", true)
 	SearchRateLimitNum = GetEnvOrDefault("SEARCH_RATE_LIMIT", 10)
 	SearchRateLimitDuration = int64(GetEnvOrDefault("SEARCH_RATE_LIMIT_DURATION", 60))
+
+	// 邮件发送限流：默认开启。三个维度分别可调，便于按发信量放宽或收紧。
+	EmailSendRateLimitEnable = GetEnvOrDefaultBool("EMAIL_SEND_RATE_LIMIT_ENABLE", true)
+	EmailSendIPRateLimitNum = GetEnvOrDefault("EMAIL_SEND_IP_RATE_LIMIT", 20)
+	EmailSendIPRateLimitDuration = int64(GetEnvOrDefault("EMAIL_SEND_IP_RATE_LIMIT_DURATION", 20*60))
+	EmailSendTargetRateLimitNum = GetEnvOrDefault("EMAIL_SEND_TARGET_RATE_LIMIT", 5)
+	EmailSendTargetRateLimitDuration = int64(GetEnvOrDefault("EMAIL_SEND_TARGET_RATE_LIMIT_DURATION", 60*60))
+	EmailSendGlobalRateLimitNum = GetEnvOrDefault("EMAIL_SEND_GLOBAL_RATE_LIMIT", 100)
+	EmailSendGlobalRateLimitDuration = int64(GetEnvOrDefault("EMAIL_SEND_GLOBAL_RATE_LIMIT_DURATION", 10*60))
 	initConstantEnv()
 }
 

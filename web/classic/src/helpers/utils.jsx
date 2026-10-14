@@ -128,7 +128,8 @@ export function showError(error) {
           window.location.href = '/login?expired=true';
           break;
         case 429:
-          Toast.error('错误：请求次数过多，请稍后再试！');
+          // 限流响应可能带 message_key（含剩余等待秒数），优先展示后端给出的具体提示
+          Toast.error('错误：' + (serverMessage || '请求次数过多，请稍后再试！'));
           break;
         case 500:
           Toast.error('错误：服务器内部错误，请联系管理员！');

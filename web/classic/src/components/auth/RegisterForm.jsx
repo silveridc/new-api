@@ -273,7 +273,7 @@ const RegisterForm = () => {
         showError(message);
       }
     } catch (error) {
-      showError('发送验证码失败，请重试');
+      // 失败提示由请求拦截器统一展示（含限流响应里的剩余等待时间）
     } finally {
       setVerificationCodeLoading(false);
     }

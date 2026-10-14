@@ -245,6 +245,27 @@ var (
 	SearchRateLimitEnable         = true
 	SearchRateLimitNum            = 10
 	SearchRateLimitDuration int64 = 60
+
+	// 邮件发送限流（无鉴权接口的反滥用）。
+	// 与 CriticalRateLimit 的区别：后者是「全站共享」的 IP 预算，被登录/注册等
+	// 高频接口消耗后，同一 IP 的邮件接口会连带被拒；这里给发信独立的 IP 预算，
+	// 并额外按目标邮箱与全站总量收口，三者任一超限即拒绝，避免第三方邮箱被轰炸
+	// 或发件域信誉被滥用（邮件轰炸无需登录，是最容易被放大的入口）。
+	EmailSendRateLimitEnable = true
+
+	// 每 IP 发信预算：默认 20 次 / 20 分钟（与 CriticalRateLimit 同量级，但独立计数）
+	EmailSendIPRateLimitNum            = 20
+	EmailSendIPRateLimitDuration int64 = 20 * 60
+
+	// 单邮箱上限：默认 1 小时内最多 5 次（OWASP 忘记密码建议的 3-5 次/小时）。
+	// 窗口要足够长才有反轰炸意义：短窗口（如 60 秒 2 次）仍允许每天向同一
+	// 受害者投递上千封邮件，而这里把最坏情况压到 120 封/天。
+	EmailSendTargetRateLimitNum            = 5
+	EmailSendTargetRateLimitDuration int64 = 60 * 60
+
+	// 全站发信总量熔断：默认 100 次 / 10 分钟，防止分布式 IP 换邮箱绕过前两层
+	EmailSendGlobalRateLimitNum            = 100
+	EmailSendGlobalRateLimitDuration int64 = 10 * 60
 )
 
 var RateLimitKeyExpirationDuration = 20 * time.Minute

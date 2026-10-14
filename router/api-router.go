@@ -43,8 +43,14 @@ func SetApiRouter(router *gin.Engine) {
 			perfMetricsRoute.GET("", controller.GetPerfMetrics)
 		}
 		apiRouter.GET("/rankings", middleware.HeaderNavModuleAuth("rankings"), controller.GetRankings)
-		apiRouter.GET("/verification", middleware.EmailVerificationRateLimit(), middleware.TurnstileCheck(), controller.SendEmailVerification)
-		apiRouter.GET("/reset_password", middleware.CriticalRateLimit(), middleware.TurnstileCheck(), controller.SendPasswordResetEmail)
+		// 发信接口无需登录，任何人对任意邮箱都能触发本站发信：原有的按 IP 冷却
+		// （EmailVerificationRateLimit）与全站共享预算（CriticalRateLimit）都挡不住
+		// 换 IP 或换邮箱，这里再叠加 IP / 目标邮箱 / 全站三层发信限流。
+		// 放在 CriticalRateLimit 之前：后者与登录/注册共享同一份 IP 预算，被拒时
+		// 只返回空体 429；发信限流先给出带等待秒数的可读提示，且被拒的请求不再
+		// 消耗那份共享预算。
+		apiRouter.GET("/verification", middleware.EmailSendRateLimit("email"), middleware.EmailVerificationRateLimit(), middleware.TurnstileCheck(), controller.SendEmailVerification)
+		apiRouter.GET("/reset_password", middleware.EmailSendRateLimit("email"), middleware.CriticalRateLimit(), middleware.TurnstileCheck(), controller.SendPasswordResetEmail)
 		apiRouter.POST("/user/reset", middleware.CriticalRateLimit(), anonymousRequestBodyLimit, controller.ResetPassword)
 		// OAuth routes - specific routes must come before :provider wildcard
 		apiRouter.POST("/oauth/state", middleware.CriticalRateLimit(), middleware.DisableCache(), middleware.TryUserAuth(), anonymousRequestBodyLimit, controller.GenerateOAuthCode)

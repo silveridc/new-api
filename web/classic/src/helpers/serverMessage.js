@@ -337,6 +337,7 @@ const SERVER_MESSAGE_TRANSLATIONS = {
   "Token has expired and cannot be enabled. Please modify the expiration time or set it to never expire": "令牌已过期，无法启用，请先修改令牌过期时间，或者设置为永不过期",
   "Token name is too long": "令牌名称过长",
   "Token quota is exhausted and cannot be enabled. Please modify the remaining quota or set it to unlimited": "令牌可用额度已用尽，无法启用，请先修改令牌剩余额度，或者设置为无限额度",
+  "Too many email requests. Please wait {{seconds}} seconds and try again.": "邮件发送过于频繁，请等待 {{seconds}} 秒后再试",
   "Too many items in batch request, maximum is {{max}}": "批量请求数量过多，最多 {{max}} 条",
   "Tool prices must be a JSON object": "工具价格必须是 JSON 对象",
   "Top-up amount cannot be less than {{min}}": "充值数量不能小于 {{min}}",
