@@ -63,10 +63,17 @@ func StartLoginVerification(user *model.User, loginMethod string, migration *Leg
 		return nil, err
 	}
 	available := false
+	lockedOnly := false
 	for _, method := range methods {
 		available = available || method.Available
+		lockedOnly = lockedOnly || verificationBlockedByLock(method)
 	}
 	if !available {
+		// 唯一登记的验证方式正处在失败锁定窗口内：挑战本身没问题，等锁定结束即可，
+		// 用「不可用」回报会让用户以为需要改配置或找管理员。
+		if lockedOnly {
+			return nil, ErrVerificationLocked
+		}
 		return nil, ErrVerificationUnavailable
 	}
 	payload := loginFlowPayload{AuthVersion: state.AuthVersion, LoginMethod: loginMethod}
@@ -120,6 +127,12 @@ func requireLoginVerificationMethod(state *model.UserVerificationState, method s
 			continue
 		}
 		if !option.Available {
+			// 因失败次数过多被锁定的两步验证仍是一种已登记、挑战仍然有效的方式，
+			// 等待锁定结束后同一个验证码就能通过：归为 ErrVerificationUnavailable
+			// 会让用户以为该方式已经失效而放弃，这里返回专门的锁定错误。
+			if verificationBlockedByLock(option) {
+				return ErrVerificationLocked
+			}
 			return ErrVerificationUnavailable
 		}
 		return nil

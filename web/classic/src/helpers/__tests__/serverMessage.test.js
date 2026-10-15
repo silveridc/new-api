@@ -103,3 +103,65 @@ describe('server message translation for email rate limits', () => {
     expect(toastError).toHaveBeenCalledWith('错误：请求次数过多，请稍后再试！');
   });
 });
+
+describe('server message translation for the two-factor lockout', () => {
+  const originalLanguage = i18next.language;
+  const LOCKED_KEY = 'Two-factor authentication is temporarily locked.';
+
+  beforeEach(() => {
+    toastError.mockClear();
+  });
+
+  afterEach(() => {
+    i18next.language = originalLanguage;
+  });
+
+  it('translates the lockout key with its error code in Chinese', () => {
+    i18next.language = 'zh';
+
+    expect(
+      getServerMessage({
+        response: {
+          data: {
+            success: false,
+            code: 'SECURITY_VERIFICATION_LOCKED',
+            message: LOCKED_KEY,
+            message_key: LOCKED_KEY,
+          },
+        },
+      }),
+    ).toBe('两步验证已暂时锁定。');
+  });
+
+  it('reaches the lockout text from the error code when the message key is unknown', () => {
+    i18next.language = 'zh';
+
+    expect(
+      getServerMessage({
+        response: {
+          data: {
+            success: false,
+            code: 'SECURITY_VERIFICATION_LOCKED',
+            message: 'Something the table does not know',
+            message_key: 'Something the table does not know',
+          },
+        },
+      }),
+    ).toBe('两步验证已暂时锁定。');
+  });
+
+  it('shows the lockout text instead of the raw English message', () => {
+    i18next.language = 'zh';
+
+    // TwoFAVerification 把业务响应的 message 原文交给 showError
+    showError(LOCKED_KEY);
+
+    expect(toastError).toHaveBeenCalledWith('错误：两步验证已暂时锁定。');
+  });
+
+  it('keeps the English source text for a non-Chinese interface', () => {
+    i18next.language = 'en';
+
+    expect(translateServerText(LOCKED_KEY)).toBe(LOCKED_KEY);
+  });
+});

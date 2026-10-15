@@ -356,12 +356,22 @@ func securityVerificationPolicy(scope string, state model.UserVerificationState)
 		if method == VerificationMethodTwoFA && state.TwoFALocked {
 			option.Available, option.Reason = false, ErrVerificationLocked.Error()
 		}
+		// 锁定状态只由上面的分支写入 Reason，requireLoginVerificationMethod 与
+		// RequireVerificationMethod 都靠 Reason 分辨「锁定」和「不可用」，改动这里
+		// 的赋值顺序会让锁定重新被当成永久不可用。
 		if !system_setting.PasskeySettingsSnapshot().Enabled && (method == VerificationMethodPasskey || scope == VerificationScopePasskeyRegister) {
 			option.Available, option.Reason = false, "Passkey authentication is disabled."
 		}
 		options = append(options, option)
 	}
 	return options, nil
+}
+
+// verificationBlockedByLock 判断某个验证方式不可用的唯一原因是不是两步验证的失败
+// 锁定。锁定会自行到期，与「已禁用」「未登记」这类需要用户改配置的原因不同：前者
+// 应该告诉用户等一会儿再试，后者才适合说该方式不可用。
+func verificationBlockedByLock(option VerificationMethodOption) bool {
+	return option.Method == VerificationMethodTwoFA && option.Reason == ErrVerificationLocked.Error()
 }
 
 func GetVerificationRequirements(identity AuthIdentity, scope string) (*VerificationRequirements, error) {
@@ -479,6 +489,9 @@ func RequireVerificationMethod(identity AuthIdentity, scope, method string) (*Ve
 			continue
 		}
 		if !option.Available {
+			if verificationBlockedByLock(option) {
+				return nil, ErrVerificationLocked
+			}
 			return nil, ErrVerificationUnavailable
 		}
 		return requirements, nil

@@ -150,6 +150,12 @@ func TestSecurityLoginRejectsChangedOrExpiredAuthorization(t *testing.T) {
 			var result securityEnrollmentResponse
 			require.NoError(t, common.Unmarshal(response.Body.Bytes(), &result))
 			assert.False(t, result.Success, change)
+			// 锁定是临时的：报「此验证方式当前不可用」会让用户以为验证码已经作废，
+			// 而实际上等锁定结束同一个验证码就能通过。
+			if change == "factor locked" {
+				assert.Equal(t, "SECURITY_VERIFICATION_LOCKED", result.Code)
+				assert.Equal(t, service.ErrVerificationLocked.Error(), result.MessageKey)
+			}
 			assert.Empty(t, response.Header().Values("Set-Cookie"))
 			count, err := model.CountActiveUserSessions(user.Id, time.Now().Unix())
 			require.NoError(t, err)
@@ -553,7 +559,10 @@ func TestSecurityLoginRequiresConfiguredFactors(t *testing.T) {
 		twoFA, passkey   bool
 		locked, disabled bool
 		methods          []service.VerificationMethodOption
-		unavailable      bool
+		// unavailable 表示没有任何可用方式；unavailableCode 区分「需要改配置」与
+		// 「只是被失败锁定，等一会儿就好」。
+		unavailable     bool
+		unavailableCode string
 	}{
 		{name: "password without additional factors"},
 		{name: "passkey requires verification", passkey: true, methods: []service.VerificationMethodOption{{Method: "passkey", Available: true}}},
@@ -561,8 +570,10 @@ func TestSecurityLoginRequiresConfiguredFactors(t *testing.T) {
 		{name: "both factors are alternatives", twoFA: true, passkey: true, methods: []service.VerificationMethodOption{{Method: "2fa", Available: true}, {Method: "passkey", Available: true}}},
 		{name: "locked twofa permits passkey", twoFA: true, passkey: true, locked: true, methods: []service.VerificationMethodOption{{Method: "2fa", Available: false, Reason: service.ErrVerificationLocked.Error()}, {Method: "passkey", Available: true}}},
 		{name: "disabled passkey permits twofa", twoFA: true, passkey: true, disabled: true, methods: []service.VerificationMethodOption{{Method: "2fa", Available: true}, {Method: "passkey", Available: false, Reason: "Passkey authentication is disabled."}}},
-		{name: "only passkey disabled blocks password", passkey: true, disabled: true, unavailable: true},
-		{name: "both factors unavailable block password", passkey: true, twoFA: true, disabled: true, locked: true, unavailable: true},
+		{name: "only passkey disabled blocks password", passkey: true, disabled: true, unavailable: true, unavailableCode: "SECURITY_METHOD_UNAVAILABLE"},
+		// 锁定会到期，禁用不会：同时存在时优先告诉用户「等一会儿」而不是「不可用」。
+		{name: "both factors unavailable block password", passkey: true, twoFA: true, disabled: true, locked: true, unavailable: true, unavailableCode: "SECURITY_VERIFICATION_LOCKED"},
+		{name: "locked twofa alone reports the lock", twoFA: true, locked: true, unavailable: true, unavailableCode: "SECURITY_VERIFICATION_LOCKED"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			user, _ := setupSecurityEnrollmentTest(t)
@@ -585,7 +596,8 @@ func TestSecurityLoginRequiresConfiguredFactors(t *testing.T) {
 			require.NoError(t, err)
 			response := securityEnrollmentRequest(http.MethodPost, "/api/user/login", `{"username":"enrollment-user","password":"enrollment-password"}`, "", service.AuthIdentity{}, Login)
 			var result struct {
-				Success bool `json:"success"`
+				Success bool   `json:"success"`
+				Code    string `json:"code"`
 				Data    struct {
 					RequireVerification bool                               `json:"require_verification"`
 					FlowToken           string                             `json:"flow_token"`
@@ -599,6 +611,7 @@ func TestSecurityLoginRequiresConfiguredFactors(t *testing.T) {
 			require.NoError(t, err)
 			if test.unavailable {
 				assert.False(t, result.Success)
+				assert.Equal(t, test.unavailableCode, result.Code, response.Body.String())
 				assert.Equal(t, before, after)
 				assert.Empty(t, response.Header().Values("Set-Cookie"))
 				return
