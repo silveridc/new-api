@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -68,6 +69,41 @@ func resolveChannelTestUserID(c *gin.Context) (int, error) {
 		return 0, errors.New("failed to resolve channel test user")
 	}
 	return rootUser.Id, nil
+}
+
+// channelTestClientIPKey 携带触发本次渠道测试的客户端 IP。
+type channelTestClientIPKey struct{}
+
+// withChannelTestClientIP 记下发起测试的用户来源。渠道测试用的请求是合成的，本身没有
+// 连接来源，不带上触发者就只能记空。
+func withChannelTestClientIP(ctx context.Context, clientIP string) context.Context {
+	if clientIP == "" {
+		return ctx
+	}
+	return context.WithValue(ctx, channelTestClientIPKey{}, clientIP)
+}
+
+// applyChannelTestClientIP 给合成请求装上可解析的来源身份，须在 c.Request 建好后调用。
+//
+// httptest.NewRequestWithContext 会连带继承父请求的 http.LocalAddrContextKey，并把来源
+// 地址固定成文档保留地址 192.0.2.1:1234：UNIX_SOCKET_PATH 部署下继承到的本地地址是 unix
+// 地址，gin 见本地地址是 unix 便认定来源可信、只从 X-Forwarded-For / X-Real-IP 取客户端
+// IP，而合成请求没有转发头，ClientIP() 于是落到对未解析的 nil net.IP 调用 String() 的
+// 分支，返回字面量 "<nil>"；TCP 部署下则把 192.0.2.1 当成客户端。两者都会被原样写进消费
+// 日志。这里显式声明本地地址是 TCP 并改写 RemoteAddr，让日志记到真正的触发方；没有触发方
+// （后台巡检）或触发方 IP 不可用时记空，而不是误归属。
+func applyChannelTestClientIP(c *gin.Context) {
+	clientIP, _ := c.Request.Context().Value(channelTestClientIPKey{}).(string)
+	c.Request = c.Request.WithContext(context.WithValue(
+		c.Request.Context(),
+		http.LocalAddrContextKey,
+		&net.TCPAddr{},
+	))
+	if net.ParseIP(clientIP) != nil {
+		c.Request.RemoteAddr = net.JoinHostPort(clientIP, "0")
+	} else {
+		c.Request.RemoteAddr = ""
+	}
 }
 
 func testChannel(ctx context.Context, channel *model.Channel, testUserID int, testModel string, endpointType string, isStream bool) testResult {
@@ -151,6 +187,7 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 		requestPath = strings.Replace(requestPath, ":generateContent", ":streamGenerateContent", 1)
 	}
 	c.Request = httptest.NewRequestWithContext(ctx, http.MethodPost, requestPath, nil)
+	applyChannelTestClientIP(c)
 
 	cache, err := model.GetUserCache(testUserID)
 	if err != nil {
@@ -875,6 +912,7 @@ func TestChannel(c *gin.Context) {
 	if c.Request != nil {
 		requestCtx = c.Request.Context()
 	}
+	requestCtx = withChannelTestClientIP(requestCtx, c.ClientIP())
 	result := testChannel(requestCtx, channel, testUserID, testModel, endpointType, isStream)
 	if result.localErr != nil {
 		resp := gin.H{

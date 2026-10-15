@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -324,6 +325,44 @@ func TestResolveChannelTestUserIDUsesRequestUser(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, 2, userID)
+}
+
+// 渠道测试的请求由 httptest 合成，把触发请求的 Context 直接交给它会连带继承
+// http.LocalAddrContextKey：UNIX_SOCKET_PATH 部署下那是 unix 地址，gin 见本地地址是
+// unix 就只从转发头取客户端 IP，而合成请求没有转发头，ClientIP() 便返回未解析的
+// net.IP 的 String()，即字面量 "<nil>"，并被原样写进消费日志。
+func TestChannelTestSynthesizedRequestReportsTriggerClientIP(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	tests := []struct {
+		name           string
+		clientIP       string
+		trustedProxies []string
+		wantIP         string
+	}{
+		{name: "ipv4 trigger", clientIP: "203.0.113.9", wantIP: "203.0.113.9"},
+		{name: "ipv6 trigger", clientIP: "2001:db8::42", wantIP: "2001:db8::42"},
+		// 触发方本身落在可信代理段时 gin 会先查转发头，合成请求没有转发头仍回落到来源 IP
+		{name: "trigger is itself a trusted proxy", clientIP: "203.0.113.9", trustedProxies: []string{"203.0.113.0/24"}, wantIP: "203.0.113.9"},
+		{name: "scheduled test has no trigger"},
+		{name: "trigger ip unavailable", clientIP: "<nil>"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			router := gin.New()
+			require.NoError(t, router.SetTrustedProxies(test.trustedProxies))
+			c := gin.CreateTestContextOnly(httptest.NewRecorder(), router)
+			parent := httptest.NewRequest(http.MethodPost, "/api/channel/test/8", nil).
+				WithContext(context.WithValue(context.Background(), http.LocalAddrContextKey,
+					&net.UnixAddr{Name: "/run/new-api.sock", Net: "unix"}))
+			c.Request = httptest.NewRequestWithContext(
+				withChannelTestClientIP(parent.Context(), test.clientIP),
+				http.MethodPost, "/v1/chat/completions", nil)
+
+			applyChannelTestClientIP(c)
+
+			assert.Equal(t, test.wantIP, c.ClientIP())
+		})
+	}
 }
 
 func TestSelectChannelsForAutomaticTestPassiveRecoveryOnlyUsesAutoDisabled(t *testing.T) {
