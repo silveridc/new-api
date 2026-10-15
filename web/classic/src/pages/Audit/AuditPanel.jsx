@@ -194,7 +194,6 @@ const AuditPanel = () => {
         ellipsis: true,
         render: (value, record) => (
           <Typography.Text ellipsis={{ showTooltip: true }}>
-          >
             {value || record.action || '-'}
           </Typography.Text>
         ),
