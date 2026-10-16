@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import axios, { type AxiosRequestConfig } from 'axios'
 import { t } from 'i18next'
 
+import { appUrl } from '@/lib/app-base'
 import {
   applyAuthRotation,
   clearAuthentication,
@@ -75,11 +76,9 @@ api.get = ((url: string, config: ApiRequestConfig = {}) => {
 }) as typeof api.get
 
 function redirectToSignIn(): void {
-  if (
-    typeof window !== 'undefined' &&
-    window.location.pathname !== '/sign-in'
-  ) {
-    window.location.replace('/sign-in')
+  const signInUrl = appUrl('/sign-in')
+  if (typeof window !== 'undefined' && window.location.pathname !== signInUrl) {
+    window.location.replace(signInUrl)
   }
 }
 

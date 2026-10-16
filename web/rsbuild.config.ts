@@ -8,6 +8,13 @@ import { tanstackRouter } from '@tanstack/router-plugin/rspack'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+// zhaoyj add: 新版界面可以和 classic 同域名子路径共存，挂载位置由构建期决定。
+// 默认值保持上游行为（根路径 '/' + 产物目录 dist）。
+function normalizeUiBase(value: string | undefined): string {
+  const trimmed = (value ?? '/').replace(/^\/+|\/+$/g, '')
+  return trimmed ? `/${trimmed}/` : '/'
+}
+
 export default defineConfig(({ envMode }) => {
   const env = loadEnv({ mode: envMode, prefixes: ['VITE_'] })
   const serverUrl =
@@ -16,6 +23,9 @@ export default defineConfig(({ envMode }) => {
     'http://localhost:3000'
 
   const isProd = envMode === 'production'
+  // zhaoyj add: 基础路径与产物目录（VITE_UI_BASE=/next/ UI_DIST_DIR=dist-next）
+  const uiBase = normalizeUiBase(process.env.VITE_UI_BASE)
+  const uiDistRoot = process.env.UI_DIST_DIR || 'dist'
   const devProxy = Object.fromEntries(
     (['/api', '/v1', '/mj', '/pg'] as const).map((key) => [
       key,
@@ -56,7 +66,11 @@ export default defineConfig(({ envMode }) => {
       // zhaoyj fix: 把 VITE_ 前缀的环境变量注入到 import.meta.env，否则 VITE_SENTRY_DSN /
       // VITE_REACT_APP_VERSION 等在打包后恒为 undefined（rsbuild 默认只自动注入 PUBLIC_ 前缀）。
       // publicVars 同时覆盖 .env 文件与命令行传入（VITE_SENTRY_DSN=... bun run build）。
-      define: env.publicVars,
+      define: {
+        ...env.publicVars,
+        // 命令行传入的环境变量不进 publicVars，基础路径显式注入给运行时
+        'import.meta.env.VITE_UI_BASE': JSON.stringify(uiBase),
+      },
       entry: {
         index: './src/main.tsx',
       },
@@ -79,8 +93,10 @@ export default defineConfig(({ envMode }) => {
       // Production optimizations
       minify: isProd,
       target: 'web',
+      // zhaoyj add: 静态资源与产物目录跟随基础路径，让新版界面能被挂在子路径下
+      assetPrefix: uiBase,
       distPath: {
-        root: 'dist',
+        root: uiDistRoot,
       },
       // Rely on Rsbuild default legalComments ("linked" → per-chunk *.LICENSE.txt) in all modes.
       // Do not set "none" in production: that strips minifier-preserved third-party notices and

@@ -21,6 +21,7 @@ import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
 
+import { APP_BASE } from '@/lib/app-base'
 import { installBuildMetadata } from '@/lib/build-metadata'
 import { applyFaviconToDom } from '@/lib/dom-utils'
 import '@/lib/dayjs'
@@ -52,6 +53,8 @@ const queryClient = createAppQueryClient(() => {
 // Create a new router instance
 const router = createRouter({
   routeTree,
+  // zhaoyj add: 挂在子路径时（/next/）所有路由与链接都跟着基础路径走
+  basepath: APP_BASE,
   context: { queryClient },
   defaultPreload: 'intent',
   defaultPreloadStaleTime: 0,

@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { appUrl, APP_BASE } from '@/lib/app-base'
 import type { AuthUser } from '@/stores/auth-store'
 
 const allowedRedirectProtocols = new Set(['http:', 'https:'])
@@ -76,5 +77,11 @@ export function sanitizeAuthRedirect(
     return null
   }
 
-  return `${redirectURL.pathname}${redirectURL.search}${redirectURL.hash}`
+  // zhaoyj add: 子路径部署时站内目标必须带基础路径，否则会被甩回根路径；
+  // 先剥掉已有的前缀，保证重复 sanitize 不会叠加。
+  const relativePathname = redirectURL.pathname.startsWith(APP_BASE)
+    ? `/${redirectURL.pathname.slice(APP_BASE.length)}`
+    : redirectURL.pathname
+
+  return `${appUrl(relativePathname)}${redirectURL.search}${redirectURL.hash}`
 }

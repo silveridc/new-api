@@ -16,6 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { appUrl } from './app-base'
+
 const legacyOrigin = 'https://legacy-route.invalid'
 
 const legacyConsoleRoutes: Record<string, string> = {
@@ -60,7 +62,8 @@ function buildTargetHref(targetPath: string, source: URL): string {
     target.searchParams.append(key, value)
   })
   target.hash = source.hash
-  return `${target.pathname}${target.search}${target.hash}`
+  // 挂在子路径时（/next/）重定向要留在新版应用内
+  return `${appUrl(target.pathname)}${target.search}${target.hash}`
 }
 
 export function resolveLegacyRoute(rawHref: string): string | null {
