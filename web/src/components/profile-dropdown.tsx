@@ -17,7 +17,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useNavigate } from '@tanstack/react-router'
-import { User, Wallet, LogOut, Settings, ShieldCheck } from 'lucide-react'
+import {
+  User,
+  Wallet,
+  LogOut,
+  Settings,
+  ShieldCheck,
+  History,
+} from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -34,7 +41,9 @@ import {
 import useDialogState from '@/hooks/use-dialog'
 import { useIsSidebarModuleVisible } from '@/hooks/use-sidebar-config'
 import { useUserDisplay } from '@/hooks/use-user-display'
+import { api } from '@/lib/api'
 import { getUserAvatarFallback, getUserAvatarStyle } from '@/lib/avatar'
+import { handleServerError } from '@/lib/handle-server-error'
 import { ROLE } from '@/lib/roles'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -55,6 +64,23 @@ export function ProfileDropdown() {
     () => getUserAvatarStyle(avatarName),
     [avatarName]
   )
+
+  // zhaoyj add: 切回旧版界面。偏好要先落库再整页跳转，否则旧版入口判定会把用户又送回 /next/。
+  const switchToClassicUi = async () => {
+    if (!user) {
+      return
+    }
+    try {
+      const res = await api.put('/api/user/self', { ui_variant: 'classic' })
+      if (!res.data.success) {
+        handleServerError(res.data, t('Save failed'))
+        return
+      }
+      window.location.replace('/')
+    } catch (error) {
+      handleServerError(error, t('Save failed, please retry'))
+    }
+  }
 
   return (
     <>
@@ -135,6 +161,11 @@ export function ProfileDropdown() {
               {t('System Settings')}
             </DropdownMenuItem>
           )}
+
+          <DropdownMenuItem onClick={switchToClassicUi}>
+            <History className='size-4' />
+            {t('Switch to classic UI')}
+          </DropdownMenuItem>
 
           <DropdownMenuSeparator />
 

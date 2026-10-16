@@ -55,6 +55,7 @@ export default function GeneralSettings(props) {
     USDExchangeRate: '',
     DisplayTokenStatEnabled: false,
     DefaultCollapseSidebar: false,
+    DefaultUiVariant: 'classic',
     DemoSiteEnabled: false,
     SelfUseModeEnabled: false,
     'token_setting.max_user_tokens': 1000,
@@ -368,6 +369,23 @@ export default function GeneralSettings(props) {
                   uncheckedText='〇'
                   onChange={handleFieldChange('DefaultCollapseSidebar')}
                 />
+              </Col>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.Select
+                  field={'DefaultUiVariant'}
+                  label={t('默认界面')}
+                  extraText={t(
+                    '未单独选择界面的用户使用该配置；二进制未打包新版时始终落到旧版',
+                  )}
+                  onChange={handleFieldChange('DefaultUiVariant')}
+                >
+                  <Form.Select.Option value='classic'>
+                    {t('旧版界面')}
+                  </Form.Select.Option>
+                  <Form.Select.Option value='next'>
+                    {t('新版界面')}
+                  </Form.Select.Option>
+                </Form.Select>
               </Col>
               <Col xs={24} sm={12} md={8} lg={8} xl={8}>
                 <Form.Switch

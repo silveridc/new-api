@@ -26,6 +26,7 @@ import {
   IconUserSetting,
   IconCreditCard,
   IconKey,
+  IconLink,
 } from '@douyinfe/semi-icons';
 import { stringToColor } from '../../../helpers';
 import SkeletonWrapper from '../components/SkeletonWrapper';
@@ -35,6 +36,8 @@ const UserArea = ({
   isLoading,
   isMobile,
   isSelfUseMode,
+  nextUiAvailable,
+  onSwitchToNextUi,
   logout,
   navigate,
   t,
@@ -101,6 +104,20 @@ const UserArea = ({
                   <span>{t('钱包管理')}</span>
                 </div>
               </Dropdown.Item>
+              {nextUiAvailable && (
+                <Dropdown.Item
+                  onClick={onSwitchToNextUi}
+                  className='!px-3 !py-1.5 !text-sm !text-semi-color-text-0 hover:!bg-semi-color-fill-1 dark:!text-gray-200 dark:hover:!bg-blue-500 dark:hover:!text-white'
+                >
+                  <div className='flex items-center gap-2'>
+                    <IconLink
+                      size='small'
+                      className='text-gray-500 dark:text-gray-400'
+                    />
+                    <span>{t('试用新版界面')}</span>
+                  </div>
+                </Dropdown.Item>
+              )}
               <Dropdown.Item
                 onClick={logout}
                 className='!px-3 !py-1.5 !text-sm !text-semi-color-text-0 hover:!bg-semi-color-fill-1 dark:!text-gray-200 dark:hover:!bg-red-500 dark:hover:!text-white'

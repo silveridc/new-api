@@ -42,6 +42,7 @@ const HeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
     isSelfUseMode,
     docsLink,
     isDemoSiteMode,
+    nextUiAvailable,
     isConsoleRoute,
     theme,
     headerNavModules,
@@ -49,6 +50,7 @@ const HeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
     rankingsRequireAuth,
     logout,
     handleLanguageChange,
+    handleSwitchToNextUi,
     handleThemeToggle,
     handleMobileMenuToggle,
     navigate,
@@ -121,6 +123,8 @@ const HeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
             isLoading={isLoading}
             isMobile={isMobile}
             isSelfUseMode={isSelfUseMode}
+            nextUiAvailable={nextUiAvailable}
+            onSwitchToNextUi={handleSwitchToNextUi}
             logout={logout}
             navigate={navigate}
             t={t}

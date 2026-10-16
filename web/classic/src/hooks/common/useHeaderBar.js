@@ -23,7 +23,13 @@ import { useTranslation } from 'react-i18next';
 import { UserContext } from '../../context/User';
 import { StatusContext } from '../../context/Status';
 import { useSetTheme, useTheme, useActualTheme } from '../../context/Theme';
-import { getLogo, getSystemName, API, showSuccess } from '../../helpers';
+import {
+  getLogo,
+  getSystemName,
+  API,
+  showError,
+  showSuccess,
+} from '../../helpers';
 import { normalizeLanguage } from '../../i18n/language';
 import { getAuthBundle, getAuthUser, logout } from '../../helpers/authSession';
 import { useIsMobile } from './useIsMobile';
@@ -52,6 +58,8 @@ export const useHeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
   const isSelfUseMode = statusState?.status?.self_use_mode_enabled || false;
   const docsLink = statusState?.status?.docs_link || '';
   const isDemoSiteMode = statusState?.status?.demo_site_enabled || false;
+  // 二进制里没打进新版产物（web/dist/next）时不提供切换入口
+  const nextUiAvailable = statusState?.status?.next_ui_available || false;
 
   // 获取顶栏模块配置
   const headerNavModulesConfig = statusState?.status?.HeaderNavModules;
@@ -206,6 +214,25 @@ export const useHeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
     [i18n, userState, userDispatch],
   );
 
+  // zhaoyj add: 切到新版界面。偏好要先落库再整页跳转，否则新版入口判定仍按旧偏好
+  // 把用户拽回旧版。同域跳转带着 refresh cookie，不需要重新登录。
+  const handleSwitchToNextUi = useCallback(async () => {
+    if (!userState?.user?.id) {
+      return;
+    }
+    try {
+      const res = await API.put('/api/user/self', { ui_variant: 'next' });
+      if (!res.data.success) {
+        showError(res.data.message || t('切换失败，请重试'));
+        return;
+      }
+      window.location.href = '/next/';
+    } catch (error) {
+      showError(t('切换失败，请重试'));
+      console.error('Failed to save ui variant preference:', error);
+    }
+  }, [userState, t]);
+
   const handleThemeToggle = useCallback(
     (newTheme) => {
       if (
@@ -243,6 +270,7 @@ export const useHeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
     isSelfUseMode,
     docsLink,
     isDemoSiteMode,
+    nextUiAvailable,
     isConsoleRoute,
     theme,
     drawerOpen,
@@ -253,6 +281,7 @@ export const useHeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
     // Actions
     logout: logoutUser,
     handleLanguageChange,
+    handleSwitchToNextUi,
     handleThemeToggle,
     handleMobileMenuToggle,
     navigate,

@@ -35,6 +35,7 @@ import { GeneralError } from '@/features/errors/general-error'
 import { NotFoundError } from '@/features/errors/not-found-error'
 import { getSetupStatus } from '@/features/setup/api'
 import { useSystemConfig } from '@/hooks/use-system-config'
+import { APP_BASE } from '@/lib/app-base'
 import {
   bootstrapAuthentication,
   clearAuthenticatedClientState,
@@ -57,6 +58,18 @@ function RootComponent() {
       saveAffiliateCode(aff)
     }
   }, [])
+
+  // zhaoyj add: 挂在子路径时，入口页按生效界面分流：偏好旧版的登录用户交回站点根路径。
+  // 只认服务端算好的生效值（ui_variant 已含系统默认与产物可用性判定），深层链接与未登录
+  // 都不跳，否则两版入口判定会在会话加载的空档里互相甩。
+  const uiVariant = useAuthStore((state) => state.auth.user?.ui_variant)
+  useEffect(() => {
+    if (APP_BASE === '/' || uiVariant !== 'classic') return
+    const base = APP_BASE.replace(/\/+$/, '')
+    const here = window.location.pathname
+    if (here !== `${base}/` && here !== (base || '/')) return
+    window.location.replace('/')
+  }, [uiVariant])
 
   useEffect(
     () =>

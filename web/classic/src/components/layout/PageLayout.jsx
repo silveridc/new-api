@@ -149,6 +149,15 @@ const PageLayout = () => {
     }
   }, [i18n, userState?.user?.setting]);
 
+  // zhaoyj add: 只在站点入口按生效界面分流，深层链接不动，避免把正在旧版子页面工作的用户半路拽走。
+  // 只认服务端算好的生效值（user.ui_variant 已包含系统默认与产物可用性判定）；未登录不跳，
+  // 否则两版入口判定会在用户还没加载完的空档里互相甩。
+  useEffect(() => {
+    if (location.pathname === '/' && userState?.user?.ui_variant === 'next') {
+      window.location.replace('/next/');
+    }
+  }, [location.pathname, userState?.user?.ui_variant]);
+
   return (
     <Layout
       className='app-layout'
