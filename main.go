@@ -239,6 +239,7 @@ func main() {
 	middleware.SetUpLogger(server)
 	// zhaoyj add: /next/ 的入口页同样需要注入统计代码，未构建时保持 nil
 	nextIndexPage, _ = buildFS.ReadFile("web/dist/next/index.html")
+	common.NextUIAvailable = nextIndexPage != nil
 	InjectUmamiAnalytics()
 	InjectGoogleAnalytics()
 

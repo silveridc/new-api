@@ -30,6 +30,12 @@ var DataExportInterval = 5         // unit: minute
 var DataExportDefaultTime = "hour" // unit: minute
 var DefaultCollapseSidebar = false // default value of collapse sidebar
 
+// zhaoyj add: 系统默认界面取值，用户未单独设置时生效；生效值由 ResolveUiVariant 计算。
+var DefaultUiVariant = "classic"
+
+// NextUIAvailable 表示二进制里是否打进了新版前端产物（web/dist/next），由 main 在启动时赋值。
+var NextUIAvailable = false
+
 // Any options with "Secret", "Token" in its key won't be return by GetOptions
 
 var SessionSecret = uuid.New().String()

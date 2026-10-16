@@ -115,6 +115,30 @@ func NormalizeBillingPreference(pref string) string {
 	}
 }
 
+// zhaoyj add: 界面偏好取值收紧，只认 classic / next，其余（含空值）归零表示「跟随系统默认」。
+func NormalizeUiVariant(variant string) string {
+	switch normalized := strings.ToLower(strings.TrimSpace(variant)); normalized {
+	case "classic", "next":
+		return normalized
+	default:
+		return ""
+	}
+}
+
+// ResolveUiVariant 计算生效界面：用户偏好优先，未设置时回落到系统默认 DefaultUiVariant。
+// 二进制没打进新版产物时必须返回 classic，否则用户会被送到一个只有兜底页的 /next。
+// 传空串即查询系统默认本身，调用方不需要自己再夹一次。
+func ResolveUiVariant(userVariant string) string {
+	variant := NormalizeUiVariant(userVariant)
+	if variant == "" {
+		variant = NormalizeUiVariant(DefaultUiVariant)
+	}
+	if variant == "" || (variant == "next" && !NextUIAvailable) {
+		return "classic"
+	}
+	return variant
+}
+
 // MaskEmail masks a user email to prevent PII leakage in logs
 // Returns "***masked***" if email is empty, otherwise shows only the domain part
 func MaskEmail(email string) string {

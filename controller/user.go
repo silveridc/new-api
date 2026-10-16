@@ -520,7 +520,9 @@ func buildSelfUserData(user *model.User) map[string]any {
 		"setting":           user.Setting,
 		"stripe_customer":   user.StripeCustomer,
 		"sidebar_modules":   userSetting.SidebarModules, // 正确提取sidebar_modules字段
-		"permissions":       permissions,
+		// zhaoyj add: 生效界面（用户偏好优先，未设置时跟随系统默认），前端据此决定是否跳转 /next/
+		"ui_variant":  common.ResolveUiVariant(userSetting.UiVariant),
+		"permissions": permissions,
 	}
 }
 
@@ -844,6 +846,31 @@ func UpdateSelf(c *gin.Context) {
 		}
 
 		common.ApiSuccessT(c, "Update successful", nil)
+		return
+	}
+
+	// 检查是否是界面偏好更新请求
+	if uiVariant, variantExists := requestData["ui_variant"]; variantExists && !passwordRequested {
+		userId := c.GetInt("id")
+		user, err := model.GetUserById(userId, false)
+		if err != nil {
+			common.ApiError(c, err)
+			return
+		}
+
+		currentSetting := user.GetSetting()
+		// 只认 classic / next，其余取值（含空串）表示恢复跟随系统默认
+		if variantStr, ok := uiVariant.(string); ok {
+			currentSetting.UiVariant = common.NormalizeUiVariant(variantStr)
+		}
+
+		if err := model.UpdateUserSetting(user.Id, currentSetting); err != nil {
+			common.ApiErrorT(c, "Update failed")
+			return
+		}
+
+		// 回传生效值：二进制没带新版产物时 next 会落回 classic
+		common.ApiSuccessT(c, "Update successful", gin.H{"ui_variant": common.ResolveUiVariant(currentSetting.UiVariant)})
 		return
 	}
 
