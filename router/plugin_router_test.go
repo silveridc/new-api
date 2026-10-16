@@ -904,6 +904,36 @@ func TestWebFallbackDoesNotCacheMissingAPIOrAssets(t *testing.T) {
 	assert.Equal(t, "no-cache", page.Header().Get("Cache-Control"))
 }
 
+// 两套界面共存：/next 走新版入口页，其余路径与接口保持原样。
+// 入口页不能交给 http.FileServer，否则 /next 与 /next/ 互指成重定向死循环。
+func TestWebRouterServesBothFrontends(t *testing.T) {
+	outer := gin.New()
+	SetWebRouter(outer, WebAssets{IndexPage: []byte("classic"), NextIndexPage: []byte("next-ui")}, func(c *gin.Context) { c.Next() })
+	for _, tc := range []struct{ path, index string }{
+		{path: "/next", index: "next-ui"},
+		{path: "/next/keys", index: "next-ui"},
+		{path: "/next/system-settings/billing/model-pricing", index: "next-ui"},
+		{path: "/keys", index: "classic"},
+		{path: "/next/../keys", index: "classic"}, // 入口页按归一后的路径判断
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			response := performPluginRequest(outer, http.MethodGet, tc.path)
+			require.Equal(t, http.StatusOK, response.Code)
+			assert.Equal(t, tc.index, response.Body.String())
+			assert.Equal(t, "no-cache", response.Header().Get("Cache-Control"))
+		})
+	}
+
+	// 新版界面未构建时，/next 沿用根界面兜底页。
+	notBuilt := gin.New()
+	SetWebRouter(notBuilt, WebAssets{IndexPage: []byte("classic")}, func(c *gin.Context) { c.Next() })
+	for _, path := range []string{"/next", "/next/keys"} {
+		response := performPluginRequest(notBuilt, http.MethodGet, path)
+		require.Equal(t, http.StatusOK, response.Code, path)
+		assert.Equal(t, "classic", response.Body.String(), path)
+	}
+}
+
 func TestSecurityRoutesDisableCachingBeforeAuthentication(t *testing.T) {
 	outer := gin.New()
 	SetApiRouter(outer)

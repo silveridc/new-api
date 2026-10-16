@@ -54,6 +54,10 @@ var buildFS embed.FS
 //go:embed web/dist/index.html
 var indexPage []byte
 
+// zhaoyj add: 新版界面与 classic 共用同一二进制时挂在 /next/，产物在 web/dist/next。
+// 该目录可能不存在（占位构建），此时 /next 沿用根界面兜底页。
+var nextIndexPage []byte
+
 // zhaoyj add: sentry
 var sentryEnabled bool
 
@@ -233,13 +237,16 @@ func main() {
 	server.Use(middleware.Version())
 	server.Use(middleware.I18n())
 	middleware.SetUpLogger(server)
+	// zhaoyj add: /next/ 的入口页同样需要注入统计代码，未构建时保持 nil
+	nextIndexPage, _ = buildFS.ReadFile("web/dist/next/index.html")
 	InjectUmamiAnalytics()
 	InjectGoogleAnalytics()
 
 	// 设置路由
 	router.SetRouter(server, router.WebAssets{
-		BuildFS:   buildFS,
-		IndexPage: indexPage,
+		BuildFS:       buildFS,
+		IndexPage:     indexPage,
+		NextIndexPage: nextIndexPage,
 	})
 	var port = os.Getenv("PORT")
 	if port == "" {
@@ -351,6 +358,7 @@ func InjectUmamiAnalytics() {
 	analyticsInject := []byte(analyticsInjectBuilder.String())
 	placeholder := []byte("<!--umami-->\n")
 	indexPage = bytes.ReplaceAll(indexPage, placeholder, analyticsInject)
+	nextIndexPage = bytes.ReplaceAll(nextIndexPage, placeholder, analyticsInject)
 }
 
 func InjectGoogleAnalytics() {
@@ -374,6 +382,7 @@ func InjectGoogleAnalytics() {
 	analyticsInject := []byte(analyticsInjectBuilder.String())
 	placeholder := []byte("<!--Google Analytics-->\n")
 	indexPage = bytes.ReplaceAll(indexPage, placeholder, analyticsInject)
+	nextIndexPage = bytes.ReplaceAll(nextIndexPage, placeholder, analyticsInject)
 }
 
 func InitResources() error {
