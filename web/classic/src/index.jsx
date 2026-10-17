@@ -27,6 +27,7 @@ import { StatusProvider } from './context/Status';
 import { ThemeProvider } from './context/Theme';
 import PageLayout from './components/layout/PageLayout';
 import SecureVerificationProvider from './components/common/SecureVerificationProvider';
+import { restoreAuthentication } from './helpers/authSession';
 import './i18n/i18n';
 import './index.css';
 import { LocaleProvider } from '@douyinfe/semi-ui';
@@ -126,25 +127,29 @@ function SemiLocaleWrapper({ children }) {
 // initialization
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(
-  <React.StrictMode>
-    <StatusProvider>
-      <UserProvider>
-        <BrowserRouter
-          future={{
-            v7_startTransition: true,
-            v7_relativeSplatPath: true,
-          }}
-        >
-          <ThemeProvider>
-            <SemiLocaleWrapper>
-              <SecureVerificationProvider>
-                <PageLayout />
-              </SecureVerificationProvider>
-            </SemiLocaleWrapper>
-          </ThemeProvider>
-        </BrowserRouter>
-      </UserProvider>
-    </StatusProvider>
-  </React.StrictMode>,
+// zhaoyj add: 先恢复会话再渲染，避免首屏把已登录用户当游客（详见 restoreAuthentication）。
+// 没有会话提示时这里不发请求，匿名访客的首屏时间与之前一致。
+void restoreAuthentication().then(() =>
+  root.render(
+    <React.StrictMode>
+      <StatusProvider>
+        <UserProvider>
+          <BrowserRouter
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true,
+            }}
+          >
+            <ThemeProvider>
+              <SemiLocaleWrapper>
+                <SecureVerificationProvider>
+                  <PageLayout />
+                </SecureVerificationProvider>
+              </SemiLocaleWrapper>
+            </ThemeProvider>
+          </BrowserRouter>
+        </UserProvider>
+      </StatusProvider>
+    </React.StrictMode>,
+  ),
 );

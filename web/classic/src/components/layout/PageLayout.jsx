@@ -35,7 +35,12 @@ import {
   showError,
   setStatusData,
 } from '../../helpers';
-import { getAuthBundle, getAuthUser, refreshAuthentication } from '../../helpers/authSession';
+import {
+  getAuthBundle,
+  getAuthUser,
+  hasSessionHint,
+  refreshAuthentication,
+} from '../../helpers/authSession';
 import { UserContext } from '../../context/User';
 import { StatusContext } from '../../context/Status';
 import { useLocation } from 'react-router-dom';
@@ -81,7 +86,9 @@ const PageLayout = () => {
 
   const loadUser = async () => {
     try {
-      if (!getAuthBundle()) {
+      // 渲染前已按会话提示恢复过；这里只兜「恢复请求卡住超时」的余地上继续等一次。
+      // 没有会话提示说明确实是游客，不必再发一个注定 401 的刷新。
+      if (!getAuthBundle() && hasSessionHint()) {
         await refreshAuthentication();
       }
       const user = getAuthUser(getAuthBundle());
