@@ -241,6 +241,16 @@ var (
 	CriticalRateLimitNum            = 20
 	CriticalRateLimitDuration int64 = 20 * 60
 
+	// 会话刷新限流（POST /api/user/auth/refresh）的独立 IP 预算。刷新凭 HttpOnly cookie 与
+	// Origin 守卫鉴权，不是可以拿来猜凭据的入口，但共用 CriticalRateLimit 的「每 IP 20 次 /
+	// 20 分钟」会被正常浏览自己耗光：访问令牌只有 15 分钟寿命，前端每次整页加载还要恢复一次
+	// 会话，同一出口 IP 上几个标签页（或 NAT 后的几个用户）就能超限。一旦超限，刷新被拒，
+	// 首个 401 就再也没机会补回令牌，前端会把它当成「登录已过期」并把有效的会话踢回登录页。
+	// 登录、注册等真正的凭据入口继续留在 Critical 桶里。
+	AuthRefreshRateLimitEnable         = true
+	AuthRefreshRateLimitNum            = 60
+	AuthRefreshRateLimitDuration int64 = 15 * 60
+
 	UploadRateLimitNum            = 10
 	UploadRateLimitDuration int64 = 60
 

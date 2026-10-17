@@ -194,6 +194,16 @@ func CriticalRateLimit() func(c *gin.Context) {
 	return defNext
 }
 
+// AuthRefreshRateLimit 给会话刷新单独的 IP 预算。刷新不校验凭据（凭 HttpOnly cookie 与
+// Origin 守卫），却和登录/注册共用同一个 Critical 桶，正常浏览就能把预算耗光；被拒之后
+// 前端只能把随后到来的 401 当作登录过期，有效会话会被踢回登录页。
+func AuthRefreshRateLimit() func(c *gin.Context) {
+	if common.AuthRefreshRateLimitEnable {
+		return rateLimitFactory(common.AuthRefreshRateLimitNum, common.AuthRefreshRateLimitDuration, "AR")
+	}
+	return defNext
+}
+
 func UserCriticalRateLimit(scope string) func(c *gin.Context) {
 	if !common.CriticalRateLimitEnable {
 		return defNext

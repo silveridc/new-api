@@ -437,3 +437,66 @@ func TestEmailSendRateLimitBlocksTargetAcrossIPs(t *testing.T) {
 		assert.Equal(t, "60", blocked.Header().Get("Retry-After"))
 	})
 }
+
+// 会话刷新必须有独立的 IP 预算：与登录/注册共用 Critical 桶时，正常用户的光刷新就会把
+// 预算耗光，之后刷新被拒，前端只能把随之而来的 401 当成登录过期并把有效会话踢回登录页。
+func TestAuthRefreshRateLimitUsesItsOwnBucket(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	previous := struct {
+		criticalEnable bool
+		criticalNum    int
+		enable         bool
+		num            int
+		duration       int64
+	}{
+		common.CriticalRateLimitEnable, common.CriticalRateLimitNum,
+		common.AuthRefreshRateLimitEnable, common.AuthRefreshRateLimitNum, common.AuthRefreshRateLimitDuration,
+	}
+	t.Cleanup(func() {
+		common.CriticalRateLimitEnable, common.CriticalRateLimitNum = previous.criticalEnable, previous.criticalNum
+		common.AuthRefreshRateLimitEnable, common.AuthRefreshRateLimitNum, common.AuthRefreshRateLimitDuration =
+			previous.enable, previous.num, previous.duration
+	})
+
+	redisServer, _ := useRateLimitMiniRedis(t)
+	common.CriticalRateLimitEnable = true
+	common.CriticalRateLimitNum = 2
+	common.AuthRefreshRateLimitEnable = true
+	common.AuthRefreshRateLimitNum = 3
+	common.AuthRefreshRateLimitDuration = 900
+
+	const remoteAddr = "192.0.2.110:12345"
+	router := gin.New()
+	require.NoError(t, router.SetTrustedProxies(nil))
+	router.GET("/login", CriticalRateLimit(), func(c *gin.Context) { c.Status(http.StatusNoContent) })
+	router.GET("/refresh", AuthRefreshRateLimit(), func(c *gin.Context) { c.Status(http.StatusNoContent) })
+
+	assert.Equal(t, http.StatusNoContent, performRateLimitRequest(router, "/login", remoteAddr).Code)
+	assert.Equal(t, http.StatusNoContent, performRateLimitRequest(router, "/login", remoteAddr).Code)
+	assert.Equal(t, http.StatusTooManyRequests, performRateLimitRequest(router, "/login", remoteAddr).Code)
+
+	for range 3 {
+		assert.Equal(t, http.StatusNoContent, performRateLimitRequest(router, "/refresh", remoteAddr).Code,
+			"刷新的预算不能被同一 IP 用尽的登录预算带下去")
+	}
+	refreshBlocked := performRateLimitRequest(router, "/refresh", remoteAddr)
+	assert.Equal(t, http.StatusTooManyRequests, refreshBlocked.Code)
+	assert.Equal(t, "900", refreshBlocked.Header().Get("Retry-After"))
+
+	criticalCount, err := redisServer.Get(redisIPRateLimitKey("CT", "192.0.2.110"))
+	require.NoError(t, err)
+	assert.Equal(t, "3", criticalCount)
+	refreshCount, err := redisServer.Get(redisIPRateLimitKey("AR", "192.0.2.110"))
+	require.NoError(t, err)
+	assert.Equal(t, "4", refreshCount)
+
+	// 开关在注册路由时生效，所以要换新路由器再验一次「关掉后不限流」
+	common.AuthRefreshRateLimitEnable = false
+	disabledRouter := gin.New()
+	require.NoError(t, disabledRouter.SetTrustedProxies(nil))
+	disabledRouter.GET("/refresh", AuthRefreshRateLimit(), func(c *gin.Context) { c.Status(http.StatusNoContent) })
+	for range 3 {
+		assert.Equal(t, http.StatusNoContent, performRateLimitRequest(disabledRouter, "/refresh", remoteAddr).Code,
+			"关掉开关后刷新不再限流")
+	}
+}
