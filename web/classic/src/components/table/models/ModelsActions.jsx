@@ -26,6 +26,8 @@ import { showSuccess, showError, copy } from '../../../helpers';
 import CompactModeToggle from '../../common/ui/CompactModeToggle';
 import SelectionNotification from './components/SelectionNotification';
 import UpstreamConflictModal from './modals/UpstreamConflictModal';
+import VendorOperationModal from './modals/VendorOperationModal';
+import { VENDOR_ACTION } from '../../../services/vendors';
 import SyncWizardModal from './modals/SyncWizardModal';
 
 const ModelsActions = ({
@@ -34,6 +36,8 @@ const ModelsActions = ({
   setEditingModel,
   setShowEdit,
   batchDeleteModels,
+  vendors,
+  refreshData,
   syncing,
   previewing,
   syncUpstream,
@@ -53,6 +57,7 @@ const ModelsActions = ({
   const [conflicts, setConflicts] = useState([]);
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [syncLocale, setSyncLocale] = useState('zh');
+  const [vendorOperation, setVendorOperation] = useState(null);
 
   const handleSyncUpstream = async (locale) => {
     // 先预览
@@ -100,6 +105,14 @@ const ModelsActions = ({
     const items = selectedKeys.map((m) => m.model_name);
     setPrefillInit({ id: undefined, type: 'model', items });
     setShowAddPrefill(true);
+  };
+
+  // 批量变更供应商归属：只登记选择，预览与执行都在 VendorOperationModal 里完成
+  const handleAssignVendor = () => {
+    setVendorOperation({
+      action: VENDOR_ACTION.assign,
+      model_ids: selectedKeys.map((model) => model.id),
+    });
   };
 
   return (
@@ -184,6 +197,7 @@ const ModelsActions = ({
         t={t}
         onDelete={handleDeleteSelectedModels}
         onAddPrefill={handleAddToPrefill}
+        onAssignVendor={handleAssignVendor}
         onClear={handleClearSelected}
         onCopy={handleCopyNames}
       />
@@ -251,6 +265,17 @@ const ModelsActions = ({
         }}
         t={t}
         loading={syncing}
+      />
+
+      <VendorOperationModal
+        visible={Boolean(vendorOperation)}
+        operation={vendorOperation}
+        vendors={vendors}
+        onClose={() => setVendorOperation(null)}
+        onSuccess={() => {
+          setSelectedKeys([]);
+          refreshData?.();
+        }}
       />
     </>
   );

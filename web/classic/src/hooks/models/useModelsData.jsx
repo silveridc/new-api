@@ -94,6 +94,7 @@ export const useModelsData = () => {
   const [activeVendorKey, setActiveVendorKey] = useState('all');
   const [showAddVendor, setShowAddVendor] = useState(false);
   const [showEditVendor, setShowEditVendor] = useState(false);
+  const [showVendorManagement, setShowVendorManagement] = useState(false);
   const [editingVendor, setEditingVendor] = useState({ id: undefined });
   const [syncing, setSyncing] = useState(false);
   const [previewing, setPreviewing] = useState(false);
@@ -480,6 +481,8 @@ export const useModelsData = () => {
     setShowAddVendor,
     showEditVendor,
     setShowEditVendor,
+    showVendorManagement,
+    setShowVendorManagement,
     editingVendor,
     setEditingVendor,
     loadVendors,

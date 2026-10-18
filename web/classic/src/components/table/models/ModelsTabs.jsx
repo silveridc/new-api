@@ -18,7 +18,15 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React from 'react';
-import { Tabs, TabPane, Tag, Button, Dropdown, Modal } from '@douyinfe/semi-ui';
+import {
+  Tabs,
+  TabPane,
+  Tag,
+  Button,
+  Dropdown,
+  Modal,
+  Space,
+} from '@douyinfe/semi-ui';
 import { IconEdit, IconDelete } from '@douyinfe/semi-icons';
 import { getLobeHubIcon, showError, showSuccess } from '../../../helpers';
 import { API } from '../../../helpers';
@@ -34,6 +42,7 @@ const ModelsTabs = ({
   setActivePage,
   setShowAddVendor,
   setShowEditVendor,
+  setShowVendorManagement,
   setEditingVendor,
   loadVendors,
   t,
@@ -80,13 +89,22 @@ const ModelsTabs = ({
       onChange={handleTabChange}
       className='mb-2'
       tabBarExtraContent={
-        <Button
-          type='primary'
-          size='small'
-          onClick={() => setShowAddVendor(true)}
-        >
-          {t('新增供应商')}
-        </Button>
+        <Space>
+          <Button
+            type='tertiary'
+            size='small'
+            onClick={() => setShowVendorManagement(true)}
+          >
+            {t('供应商管理')}
+          </Button>
+          <Button
+            type='primary'
+            size='small'
+            onClick={() => setShowAddVendor(true)}
+          >
+            {t('新增供应商')}
+          </Button>
+        </Space>
       }
     >
       <TabPane

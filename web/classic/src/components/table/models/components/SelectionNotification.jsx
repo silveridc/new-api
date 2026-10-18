@@ -33,6 +33,7 @@ const SelectionNotification = ({
   t,
   onDelete,
   onAddPrefill,
+  onAssignVendor,
   onClear,
   onCopy,
 }) => {
@@ -66,6 +67,14 @@ const SelectionNotification = ({
           <Button size='small' type='secondary' theme='solid' onClick={onCopy}>
             {t('复制名称')}
           </Button>
+          <Button
+            size='small'
+            type='tertiary'
+            theme='solid'
+            onClick={onAssignVendor}
+          >
+            {t('变更供应商')}
+          </Button>
           <Button size='small' type='danger' theme='solid' onClick={onDelete}>
             {t('删除所选')}
           </Button>
@@ -85,7 +94,15 @@ const SelectionNotification = ({
       // 取消全部勾选时关闭通知
       Notification.close(NOTICE_ID);
     }
-  }, [selectedKeys, t, onDelete, onAddPrefill, onClear, onCopy]);
+  }, [
+    selectedKeys,
+    t,
+    onDelete,
+    onAddPrefill,
+    onAssignVendor,
+    onClear,
+    onCopy,
+  ]);
 
   // 卸载时确保关闭通知
   useEffect(() => {

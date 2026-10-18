@@ -27,6 +27,7 @@ import ModelsFilters from './ModelsFilters';
 import ModelsTabs from './ModelsTabs';
 import EditModelModal from './modals/EditModelModal';
 import EditVendorModal from './modals/EditVendorModal';
+import VendorManagementModal from './modals/VendorManagementModal';
 import { useModelsData } from '../../../hooks/models/useModelsData';
 import { useIsMobile } from '../../../hooks/common/useIsMobile';
 import { createCardProPagination } from '../../../helpers/utils';
@@ -68,8 +69,11 @@ const ModelsPage = () => {
     setShowAddVendor,
     showEditVendor,
     setShowEditVendor,
+    showVendorManagement,
+    setShowVendorManagement,
     editingVendor,
     setEditingVendor,
+    vendors,
     loadVendors,
 
     // Translation
@@ -130,6 +134,16 @@ const ModelsPage = () => {
         }}
       />
 
+      <VendorManagementModal
+        visible={showVendorManagement}
+        onClose={() => setShowVendorManagement(false)}
+        vendors={vendors}
+        onDataChanged={() => {
+          loadVendors();
+          refresh();
+        }}
+      />
+
       {showMarketplaceDisplayNotice ? (
         <div style={{ position: 'relative', marginBottom: 12 }}>
           <Banner
@@ -168,6 +182,11 @@ const ModelsPage = () => {
               setEditingModel={setEditingModel}
               setShowEdit={setShowEdit}
               batchDeleteModels={batchDeleteModels}
+              vendors={vendors}
+              refreshData={() => {
+                refresh();
+                loadVendors();
+              }}
               syncing={modelsData.syncing}
               syncUpstream={modelsData.syncUpstream}
               previewing={modelsData.previewing}
