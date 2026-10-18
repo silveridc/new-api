@@ -24,10 +24,20 @@ type WebAssets struct {
 // nextUIPathPrefix 与新版前端构建时的 VITE_UI_BASE 对应，产物位于 web/dist/next。
 const nextUIPathPrefix = "/next"
 
+// assetDirPath 是两种界面共用的构建产物目录，里面只有带哈希的 chunk，没有
+// index.html。
+const assetDirPath = "/assets"
+
 // isNextUIEntry 只匹配入口页本身。目录形式必须绕开 http.FileServer：gin 把
 // /next/ 折到 /next，FileServer 又把 /next 指回 /next/，两者互指成重定向死循环。
 func isNextUIEntry(urlPath string) bool {
 	return urlPath == nextUIPathPrefix || urlPath == nextUIPathPrefix+"/"
+}
+
+// isAssetDirEntry 同 isNextUIEntry：/assets 与 /assets/ 都会被 FileServer 当成
+// 目录，一个补斜杠一个去斜杠，互指成重定向死循环，兜底分支拿不到 404。
+func isAssetDirEntry(urlPath string) bool {
+	return urlPath == assetDirPath || urlPath == assetDirPath+"/"
 }
 
 func isNextUIRequest(urlPath string) bool {
@@ -59,6 +69,15 @@ func SetWebRouter(router *gin.Engine, assets WebAssets, pluginDispatcher gin.Han
 			c.Abort()
 			c.Header("Cache-Control", "no-cache")
 			c.Data(http.StatusOK, "text/html; charset=utf-8", assets.NextIndexPage)
+		},
+		func(c *gin.Context) {
+			// 目录形式交给 FileServer 只会得到互相重定向，这里直接落到与
+			// /assets/xxx 缺失文件相同的 404 分支。
+			if !isAssetDirEntry(c.Request.URL.Path) {
+				return
+			}
+			c.Abort()
+			controller.RelayNotFound(c)
 		},
 		middleware.ServeFrontendFiles(frontendFS),
 		func(c *gin.Context) {

@@ -165,3 +165,85 @@ describe('server message translation for the two-factor lockout', () => {
     expect(translateServerText(LOCKED_KEY)).toBe(LOCKED_KEY);
   });
 });
+
+describe('showError status handling', () => {
+  const originalLanguage = i18next.language;
+  const LOCKED_KEY = 'Two-factor authentication is temporarily locked.';
+
+  afterEach(() => {
+    i18next.language = originalLanguage;
+  });
+
+  // 断网、超时、DNS 失败的 axios 错误没有 response 属性，状态码无从读取。
+  const axiosError = (message, status, data) => {
+    const error = new Error(message);
+    error.name = 'AxiosError';
+    if (status !== undefined) {
+      error.response = { status, data };
+    }
+    return error;
+  };
+
+  it('shows the connectivity hint instead of throwing without a response', () => {
+    i18next.language = 'zh';
+
+    expect(() => showError(axiosError('Network Error'))).not.toThrow();
+    expect(toastError).toHaveBeenCalledWith(
+      '错误：无法连接服务器，请检查网络后重试！',
+    );
+  });
+
+  it('covers a timeout, which also carries no response', () => {
+    i18next.language = 'zh';
+
+    expect(() =>
+      showError(axiosError('timeout of 5000ms exceeded')),
+    ).not.toThrow();
+    expect(toastError).toHaveBeenCalledWith(
+      '错误：无法连接服务器，请检查网络后重试！',
+    );
+  });
+
+  it('still uses a server message carried on the error when there is no response', () => {
+    i18next.language = 'zh';
+    const error = axiosError('Network Error');
+    error.message_key = LOCKED_KEY;
+
+    showError(error);
+
+    expect(toastError).toHaveBeenCalledWith('错误：两步验证已暂时锁定。');
+  });
+
+  it('keeps the per-status hints for responses that do exist', () => {
+    i18next.language = 'zh';
+
+    showError(axiosError('Request failed', 500, { success: false }));
+    expect(toastError).toHaveBeenLastCalledWith(
+      '错误：服务器内部错误，请联系管理员！',
+    );
+
+    showError(
+      axiosError('Request failed', 429, {
+        success: false,
+        message_key: RATE_LIMIT_KEY,
+        message_params: { seconds: 60 },
+      }),
+    );
+    expect(toastError).toHaveBeenLastCalledWith(
+      '错误：邮件发送过于频繁，请等待 60 秒后再试',
+    );
+  });
+
+  it('falls through to the server message for an unmapped status', () => {
+    i18next.language = 'zh';
+
+    showError(
+      axiosError('Request failed with status code 409', 409, {
+        success: false,
+        message_key: LOCKED_KEY,
+      }),
+    );
+
+    expect(toastError).toHaveBeenCalledWith('错误：两步验证已暂时锁定。');
+  });
+});

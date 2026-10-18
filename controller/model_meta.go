@@ -32,7 +32,8 @@ func listModelsMeta(c *gin.Context, keyword, vendor string) {
 	}
 
 	pageInfo := common.GetPageQuery(c)
-	if squareState != "" && (pageInfo.GetPage() < 1 || pageInfo.GetPageSize() < 1) {
+	// GetPageQuery 已把非法分页归一成正数，所以这里只能按原始查询串判断负数入参。
+	if squareState != "" && common.InvalidPageQuery(c) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid pagination"})
 		return
 	}

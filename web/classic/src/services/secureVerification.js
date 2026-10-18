@@ -111,6 +111,9 @@ export const createApiCalls = {
       case 'PUT':
         response = await API.put(url, extraData, config);
         break;
+      case 'PATCH':
+        response = await API.patch(url, extraData, config);
+        break;
       case 'DELETE':
         response = await API.delete(url, { ...config, data: extraData });
         break;

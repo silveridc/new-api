@@ -120,7 +120,13 @@ export function showError(error) {
     // 服务器消息 i18n：响应体或 axios 错误带 message_key / code 时显示翻译后的中文
     const serverMessage = getServerMessage(error);
     if (error.name === 'AxiosError') {
-      switch (error.response.status) {
+      switch (error.response?.status) {
+        case undefined:
+          // 断网、超时等错误没有 response，只能给本地文案，不能读 error.response
+          Toast.error(
+            '错误：' + (serverMessage || '无法连接服务器，请检查网络后重试！'),
+          );
+          break;
         case 401:
           // 清除用户状态
           localStorage.removeItem('user');

@@ -1449,14 +1449,24 @@ func UpdateUserSetting(c *gin.Context) {
 		upstreamModelUpdateNotifyEnabled = *req.UpstreamModelUpdateNotifyEnabled
 	}
 
-	// 构建设置
-	settings := dto.UserSetting{
-		NotifyType:                       req.QuotaWarningType,
-		QuotaWarningThreshold:            req.QuotaWarningThreshold,
-		UpstreamModelUpdateNotifyEnabled: upstreamModelUpdateNotifyEnabled,
-		AcceptUnsetRatioModel:            req.AcceptUnsetModelRatioModel,
-		RecordIpLog:                      req.RecordIpLog,
-	}
+	// 以已存设置为底：本接口只管通知预警和两个开关，其余偏好（语言、侧边栏
+	// 模块、扣费策略、界面版本）必须原样带回，否则保存通知设置会把它们清掉。
+	settings := existingSettings
+	// 通知渠道字段由本接口独占：切换预警类型时旧渠道参数要归零，保持与原来
+	// 整体覆盖时一致的清除语义。
+	settings.WebhookUrl = ""
+	settings.WebhookSecret = ""
+	settings.NotificationEmail = ""
+	settings.BarkUrl = ""
+	settings.GotifyUrl = ""
+	settings.GotifyToken = ""
+	settings.GotifyPriority = 0
+
+	settings.NotifyType = req.QuotaWarningType
+	settings.QuotaWarningThreshold = req.QuotaWarningThreshold
+	settings.UpstreamModelUpdateNotifyEnabled = upstreamModelUpdateNotifyEnabled
+	settings.AcceptUnsetRatioModel = req.AcceptUnsetModelRatioModel
+	settings.RecordIpLog = req.RecordIpLog
 
 	// 如果是webhook类型,添加webhook相关设置
 	if req.QuotaWarningType == dto.NotifyTypeWebhook {
