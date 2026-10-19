@@ -4250,6 +4250,17 @@
     "并确认自行承担部署": "confirm that I bear legal responsibility arising from deployment",
     "运营和收费行为产生的法律责任": "operation and charging behavior",
     "，": ", ",
-    "、": ", "
+    "、": ", ",
+    "任务计费": "Tính phí tác vụ",
+    "可用性": "Khả dụng",
+    "性能数据": "Dữ liệu hiệu năng",
+    "该模型暂无性能数据": "Chưa có dữ liệu hiệu năng cho mô hình này",
+    "近 {{hours}} 小时可用性": "Khả dụng trong {{hours}} giờ qua",
+    "近 {{hours}} 小时内无异常": "Không có sự cố trong {{hours}} giờ qua",
+    "近 {{hours}} 小时内有 {{incidents}} 次异常": "{{incidents}} sự cố trong {{hours}} giờ qua",
+    "动态计费": "Tính phí động",
+    "平均 TPS": "TPS trung bình",
+    "平均延迟": "Độ trễ trung bình",
+    "成功率": "Tỷ lệ thành công"
   }
 }

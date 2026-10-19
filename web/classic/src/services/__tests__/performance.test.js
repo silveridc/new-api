@@ -31,8 +31,10 @@ vi.mock('../../helpers', () => ({ API }));
 
 import {
   PERF_HOURS_OPTIONS,
+  AVAILABILITY_SAMPLE_LIMIT,
   normalizePerfHours,
   getPerfSummary,
+  getPerfMetrics,
   getPerformanceStats,
   clearDiskCache,
   resetPerformanceStats,
@@ -42,6 +44,10 @@ import {
   formatLatency,
   formatTps,
   buildPerfModelRows,
+  buildAvailabilityPoints,
+  successRateLevel,
+  availabilityBarHeight,
+  successRateColor,
 } from '../performance';
 
 describe('performance service contract', () => {
@@ -61,15 +67,16 @@ describe('performance service contract', () => {
   it('GETs /api/perf-metrics/summary with hours and unwraps data', async () => {
     // 后端 controller/perf_metrics.go:14-34（RootAuth 无需，
     // HeaderNavModulePublicOrUserAuth("pricing")），QuerySummaryAll 结果结构。
+    // success_rate 为 0..100 百分数（pkg/perf_metrics/metrics.go successRate）。
     const payload = {
-      summary: { avg_latency_ms: 812, success_rate: 0.9942, avg_tps: 33.5 },
+      summary: { avg_latency_ms: 812, success_rate: 99.42, avg_tps: 33.5 },
       window_start: 1,
       window_end: 2,
       models: [
         {
           model_name: 'gpt-4o',
           avg_latency_ms: 700,
-          success_rate: 0.99,
+          success_rate: 99,
           avg_tps: 40,
         },
       ],
@@ -150,8 +157,9 @@ describe('performance service contract', () => {
     expect(formatBytes(2048)).toBe('2.00 KB');
     expect(formatBytes(0)).toBe('0 B');
     expect(formatBytes(undefined)).toBe('-');
-    expect(formatSuccessRate(0.9942)).toBe('99.42%');
+    expect(formatSuccessRate(99.42)).toBe('99.42%');
     expect(formatSuccessRate(0)).toBe('0.00%');
+    expect(formatSuccessRate(100)).toBe('100.00%');
     expect(formatSuccessRate(undefined)).toBe('-');
     expect(formatLatency(812.6)).toBe('813 ms');
     expect(formatLatency(undefined)).toBe('-');
@@ -164,7 +172,7 @@ describe('performance service contract', () => {
       {
         model_name: 'gpt-4o',
         avg_latency_ms: 700,
-        success_rate: 0.99,
+        success_rate: 99,
         avg_tps: 40,
         request_count: 123,
       },
@@ -177,5 +185,76 @@ describe('performance service contract', () => {
       request_count: 123,
     });
     expect(buildPerfModelRows(undefined)).toEqual([]);
+  });
+
+  it('GETs /api/perf-metrics for one model and omits an empty group filter', async () => {
+    // 后端 controller/perf_metrics.go:44-79：model 必填，group 为空即不限分组。
+    const payload = {
+      model_name: 'gpt-4o',
+      summary: { avg_latency_ms: 700, success_rate: 99.01, avg_tps: 40 },
+      series: [{ ts: 1, success_rate: 99.01 }],
+      groups: [],
+    };
+    API.get.mockResolvedValue({ data: { success: true, data: payload } });
+
+    await expect(getPerfMetrics('gpt-4o')).resolves.toEqual(payload);
+    expect(API.get).toHaveBeenCalledWith('/api/perf-metrics', {
+      params: { hours: 24, model: 'gpt-4o' },
+    });
+
+    await getPerfMetrics('gpt-4o', 6, '  ');
+    expect(API.get).toHaveBeenLastCalledWith('/api/perf-metrics', {
+      params: { hours: 6, model: 'gpt-4o' },
+    });
+
+    await getPerfMetrics('gpt-4o', 6, 'vip');
+    expect(API.get).toHaveBeenLastCalledWith('/api/perf-metrics', {
+      params: { hours: 6, model: 'gpt-4o', group: 'vip' },
+    });
+
+    API.get.mockResolvedValue({ data: { success: false, message: 'boom' } });
+    await expect(getPerfMetrics('gpt-4o')).rejects.toThrow('boom');
+  });
+
+  it('builds sparkline samples in ascending time order and keeps the latest hours', () => {
+    const points = buildAvailabilityPoints([
+      { ts: 3, success_rate: 100 },
+      { ts: 1, success_rate: 98.5 },
+      { ts: 2, success_rate: undefined },
+      { ts: 2, success_rate: 101 },
+      null,
+    ]);
+    expect(points).toEqual([
+      { ts: 1, rate: 98.5 },
+      { ts: 3, rate: 100 },
+    ]);
+
+    const many = Array.from({ length: 30 }, (_, i) => ({
+      ts: i + 1,
+      success_rate: 100,
+    }));
+    const limited = buildAvailabilityPoints(many);
+    expect(limited).toHaveLength(AVAILABILITY_SAMPLE_LIMIT);
+    expect(limited[0].ts).toBe(30 - AVAILABILITY_SAMPLE_LIMIT + 1);
+    expect(buildAvailabilityPoints(undefined)).toEqual([]);
+  });
+
+  it('grades success rates with the same thresholds and colors as the new UI', () => {
+    expect(successRateLevel(100)).toBe('excellent');
+    expect(successRateLevel(99.99)).toBe('good');
+    expect(successRateLevel(90)).toBe('good');
+    expect(successRateLevel(89.9)).toBe('warning');
+    expect(successRateLevel(70)).toBe('warning');
+    expect(successRateLevel(69.9)).toBe('critical');
+    expect(successRateLevel(undefined)).toBe('unknown');
+    expect(successRateColor(100)).toBe('#10b981');
+    expect(successRateColor(69.9)).toBe('#ef4444');
+
+    expect(availabilityBarHeight(100)).toBe(100);
+    expect(availabilityBarHeight(99.5)).toBe(88);
+    expect(availabilityBarHeight(96)).toBe(72);
+    expect(availabilityBarHeight(92)).toBe(55);
+    expect(availabilityBarHeight(50)).toBe(40);
+    expect(availabilityBarHeight(undefined)).toBe(40);
   });
 });

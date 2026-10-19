@@ -33,6 +33,15 @@ import { API } from '../helpers';
  *           models: [{ model_name, avg_latency_ms, success_rate, avg_tps,
  *                      recent_success_series?, request_count? }] }
  *
+ * GET /api/perf-metrics?model=X&hours=N[&group=G]（controller/perf_metrics.go:44-79）
+ *   data: { model_name, series_schema,
+ *           summary?: { avg_latency_ms, success_rate, avg_tps } | null,
+ *           series: [{ ts, avg_ttft_ms, avg_latency_ms, success_rate, avg_tps }],
+ *           window_start, window_end,
+ *           groups: [{ group, avg_ttft_ms, avg_latency_ms, success_rate, avg_tps,
+ *                      series: [...] }] }
+ *   注意：所有 success_rate 均为 0..100 百分数。
+ *
  * GET /api/performance/stats（Root）
  *   data: { cache_stats, memory_stats: { alloc, total_alloc, sys, num_gc, num_goroutine },
  *           disk_cache_info: { path, exists, file_count, total_size },
@@ -63,6 +72,26 @@ export function normalizePerfHours(hours) {
 export async function getPerfSummary(hours) {
   const res = await API.get('/api/perf-metrics/summary', {
     params: { hours: normalizePerfHours(hours) },
+  });
+  const { success, message, data } = res.data || {};
+  if (!success) {
+    throw new Error(message || '获取模型性能数据失败');
+  }
+  return data || null;
+}
+
+/**
+ * 单个模型的性能明细（分分组 + 时间序列）。返回解包后的 data。
+ * group 为空表示全部允许分组的汇总。
+ */
+export async function getPerfMetrics(modelName, hours, group) {
+  const params = { hours: normalizePerfHours(hours) };
+  const g = typeof group === 'string' ? group.trim() : '';
+  if (g) {
+    params.group = g;
+  }
+  const res = await API.get('/api/perf-metrics', {
+    params: { ...params, model: modelName },
   });
   const { success, message, data } = res.data || {};
   if (!success) {
@@ -133,12 +162,13 @@ export function formatBytes(bytes) {
 }
 
 /**
- * success_rate 后端为 0..1 比例（QuerySummaryAll 聚合值）。
+ * success_rate 后端已是 0..100 的百分数（pkg/perf_metrics successRate() 乘 100，
+ * summary 再 round 到两位），这里只做展示格式化，不要再乘 100。
  */
 export function formatSuccessRate(rate) {
   const n = Number(rate);
   if (!Number.isFinite(n)) return '-';
-  return `${(n * 100).toFixed(2)}%`;
+  return `${n.toFixed(2)}%`;
 }
 
 export function formatLatency(ms) {
@@ -168,4 +198,64 @@ export function buildPerfModelRows(models) {
     tps_label: formatTps(m?.avg_tps),
     request_count: Number(m?.request_count || 0),
   }));
+}
+
+/**
+ * 可用性迷你柱图（sparkline）数据与样式。阈值/配色对齐新版
+ * web/src/features/performance-metrics/lib/format.ts 与
+ * web/src/features/pricing/components/model-perf-badge.tsx。
+ */
+export const AVAILABILITY_SAMPLE_LIMIT = 24;
+
+export function successRateLevel(rate) {
+  const n = Number(rate);
+  if (!Number.isFinite(n)) return 'unknown';
+  if (n >= 100) return 'excellent';
+  if (n >= 90) return 'good';
+  if (n >= 70) return 'warning';
+  return 'critical';
+}
+
+const SUCCESS_RATE_COLOR = {
+  excellent: '#10b981',
+  good: '#34d399',
+  warning: '#f59e0b',
+  critical: '#ef4444',
+  unknown: '#9ca3af',
+};
+
+export function successRateColor(rate) {
+  return SUCCESS_RATE_COLOR[successRateLevel(rate)];
+}
+
+// 越差的小时柱子越矮，便于扫视异常时段。
+export function availabilityBarHeight(rate) {
+  const n = Number(rate);
+  if (!Number.isFinite(n)) return 40;
+  if (n >= 99.9) return 100;
+  if (n >= 99) return 88;
+  if (n >= 95) return 72;
+  if (n >= 90) return 55;
+  return 40;
+}
+
+/**
+ * 把 { ts, success_rate } 序列整理成 sparkline 采样点：丢弃缺字段的点，
+ * 按时间升序，只保留最近 limit 个小时（与新版 model-perf-badge.tsx 一致）。
+ */
+export function buildAvailabilityPoints(series, limit = AVAILABILITY_SAMPLE_LIMIT) {
+  return (Array.isArray(series) ? series : [])
+    .filter((point) => {
+      const ts = Number(point?.ts);
+      const rate = Number(point?.success_rate);
+      return (
+        Number.isFinite(ts) &&
+        Number.isFinite(rate) &&
+        rate >= 0 &&
+        rate <= 100
+      );
+    })
+    .map((point) => ({ ts: Number(point.ts), rate: Number(point.success_rate) }))
+    .sort((a, b) => a.ts - b.ts)
+    .slice(-limit);
 }

@@ -26,6 +26,7 @@ import ModelHeader from './components/ModelHeader';
 import ModelBasicInfo from './components/ModelBasicInfo';
 import ModelEndpoints from './components/ModelEndpoints';
 import ModelPricingTable from './components/ModelPricingTable';
+import ModelPerformance from './components/ModelPerformance';
 import DynamicPricingBreakdown from './components/DynamicPricingBreakdown';
 import ModelUsageSchema from './components/ModelUsageSchema';
 
@@ -131,6 +132,10 @@ const ModelDetailSideSheet = ({
                 autoGroups={autoGroups}
                 t={t}
               />
+            </div>
+            <Divider margin={16} />
+            <div style={{ padding: '0 24px' }}>
+              <ModelPerformance modelName={modelData.model_name} />
             </div>
             <Divider margin={16} />
           </>

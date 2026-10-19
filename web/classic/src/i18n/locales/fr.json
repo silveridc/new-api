@@ -3716,6 +3716,17 @@
     "并确认自行承担部署": "confirm that I bear legal responsibility arising from deployment",
     "运营和收费行为产生的法律责任": "operation and charging behavior",
     "，": ", ",
-    "、": ", "
+    "、": ", ",
+    "任务计费": "Facturation de tâche",
+    "可用性": "Disponibilité",
+    "性能数据": "Données de performance",
+    "该模型暂无性能数据": "Aucune donnée de performance pour ce modèle",
+    "近 {{hours}} 小时可用性": "Disponibilité sur les {{hours}} dernières heures",
+    "近 {{hours}} 小时内无异常": "Aucun incident sur les {{hours}} dernières heures",
+    "近 {{hours}} 小时内有 {{incidents}} 次异常": "{{incidents}} incidents sur les {{hours}} dernières heures",
+    "动态计费": "Tarification dynamique",
+    "平均 TPS": "TPS moyen",
+    "平均延迟": "Latence moyenne",
+    "成功率": "Taux de réussite"
   }
 }

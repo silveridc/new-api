@@ -18,8 +18,9 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React from 'react';
-import { Typography, Toast, Avatar } from '@douyinfe/semi-ui';
+import { Typography, Toast, Avatar, Tag } from '@douyinfe/semi-ui';
 import { getLobeHubIcon } from '../../../../../helpers';
+import { getBillingModeTag } from '../../../../../services/billingMode';
 
 const { Paragraph } = Typography;
 
@@ -73,21 +74,30 @@ const ModelHeader = ({ modelData, vendorsMap = {}, t }) => {
     );
   };
 
+  const billingTag = getBillingModeTag(modelData, t);
+
   return (
     <div className='flex items-center'>
       {getModelIcon()}
       <div className='ml-3 font-normal'>
-        <Paragraph
-          className='!mb-0 !text-lg !font-medium'
-          copyable={{
-            content: modelData?.model_name || '',
-            onCopy: () => Toast.success({ content: t('已复制模型名称') }),
-          }}
-        >
-          <span className='truncate max-w-60 font-bold'>
-            {modelData?.model_name || t('未知模型')}
-          </span>
-        </Paragraph>
+        <div className='flex items-center gap-2'>
+          <Paragraph
+            className='!mb-0 !text-lg !font-medium'
+            copyable={{
+              content: modelData?.model_name || '',
+              onCopy: () => Toast.success({ content: t('已复制模型名称') }),
+            }}
+          >
+            <span className='truncate max-w-60 font-bold'>
+              {modelData?.model_name || t('未知模型')}
+            </span>
+          </Paragraph>
+          {billingTag && (
+            <Tag color={billingTag.color} size='small' shape='circle'>
+              {billingTag.text}
+            </Tag>
+          )}
+        </div>
       </div>
     </div>
   );

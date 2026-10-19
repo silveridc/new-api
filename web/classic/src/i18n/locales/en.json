@@ -4359,6 +4359,13 @@
     "选择并排序该令牌依次尝试的分组；留空则继承全局 Auto 顺序": "Choose and order the groups this token will try; leave empty to inherit the global Auto order.",
     "请至少选择一个 Auto 分组，或恢复为全局 Auto": "Select at least one Auto group, or restore the global Auto.",
     "按今日/本周/本月/本年展示用户与模型用量排行": "Shows user and model usage rankings by today / week / month / year",
-    "开启后未登录用户无法访问排行榜": "When enabled, unauthenticated users cannot access the rankings page"
+    "开启后未登录用户无法访问排行榜": "When enabled, unauthenticated users cannot access the rankings page",
+    "任务计费": "Task billing",
+    "可用性": "Availability",
+    "性能数据": "Performance Data",
+    "该模型暂无性能数据": "No performance data available for this model",
+    "近 {{hours}} 小时可用性": "Availability over the last {{hours}} hours",
+    "近 {{hours}} 小时内无异常": "No incidents in the last {{hours}} hours",
+    "近 {{hours}} 小时内有 {{incidents}} 次异常": "{{incidents}} incidents in the last {{hours}} hours"
   }
 }
