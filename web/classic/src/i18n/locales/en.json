@@ -4366,6 +4366,8 @@
     "该模型暂无性能数据": "No performance data available for this model",
     "近 {{hours}} 小时可用性": "Availability over the last {{hours}} hours",
     "近 {{hours}} 小时内无异常": "No incidents in the last {{hours}} hours",
-    "近 {{hours}} 小时内有 {{incidents}} 次异常": "{{incidents}} incidents in the last {{hours}} hours"
+    "近 {{hours}} 小时内有 {{incidents}} 次异常": "{{incidents}} incidents in the last {{hours}} hours",
+    "平均首 Token 延迟": "Average first-token latency",
+    "延迟趋势（近 {{hours}} 小时）": "Latency trend (last {{hours}} hours)"
   }
 }

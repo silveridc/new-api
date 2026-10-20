@@ -4261,6 +4261,8 @@
     "动态计费": "Tính phí động",
     "平均 TPS": "TPS trung bình",
     "平均延迟": "Độ trễ trung bình",
-    "成功率": "Tỷ lệ thành công"
+    "成功率": "Tỷ lệ thành công",
+    "平均首 Token 延迟": "Độ trễ token đầu tiên trung bình",
+    "延迟趋势（近 {{hours}} 小时）": "Xu hướng độ trễ ({{hours}} giờ qua)"
   }
 }

@@ -3727,6 +3727,8 @@
     "动态计费": "Tarification dynamique",
     "平均 TPS": "TPS moyen",
     "平均延迟": "Latence moyenne",
-    "成功率": "Taux de réussite"
+    "成功率": "Taux de réussite",
+    "平均首 Token 延迟": "Latence moyenne du premier jeton",
+    "延迟趋势（近 {{hours}} 小时）": "Tendance de latence ({{hours}} dernières heures)"
   }
 }

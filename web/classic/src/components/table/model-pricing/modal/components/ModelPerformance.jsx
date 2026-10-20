@@ -22,9 +22,11 @@ import { Table, Tag, Typography } from '@douyinfe/semi-ui';
 import { useTranslation } from 'react-i18next';
 
 import AvailabilitySparkline from '../../../../common/ui/AvailabilitySparkline';
+import LatencyTrendChart from './LatencyTrendChart';
 import {
   DEFAULT_PERF_HOURS,
   buildAvailabilityPoints,
+  buildLatencyPoints,
   formatLatency,
   formatSuccessRate,
   formatTps,
@@ -104,7 +106,11 @@ export default function ModelPerformance({ modelName }) {
     () => buildAvailabilityPoints(data?.series),
     [data],
   );
+  const latencyPoints = useMemo(() => buildLatencyPoints(data?.series), [data]);
   const availabilityLabel = t('近 {{hours}} 小时可用性', {
+    hours: DEFAULT_PERF_HOURS,
+  });
+  const latencyLabel = t('延迟趋势（近 {{hours}} 小时）', {
     hours: DEFAULT_PERF_HOURS,
   });
 
@@ -225,6 +231,8 @@ export default function ModelPerformance({ modelName }) {
           </div>
         </div>
       )}
+
+      <LatencyTrendChart points={latencyPoints} title={latencyLabel} />
 
       {groups.length > 0 && (
         <Table

@@ -45,6 +45,9 @@ import {
   formatTps,
   buildPerfModelRows,
   buildAvailabilityPoints,
+  buildLatencyPoints,
+  formatPerfTimeLabel,
+  LATENCY_POINT_LIMIT,
   successRateLevel,
   availabilityBarHeight,
   successRateColor,
@@ -237,6 +240,41 @@ describe('performance service contract', () => {
     expect(limited).toHaveLength(AVAILABILITY_SAMPLE_LIMIT);
     expect(limited[0].ts).toBe(30 - AVAILABILITY_SAMPLE_LIMIT + 1);
     expect(buildAvailabilityPoints(undefined)).toEqual([]);
+  });
+
+  it('formats perf bucket times as local HH:mm', () => {
+    const localTs = (hour, minute) =>
+      new Date(2026, 9, 20, hour, minute, 0).getTime() / 1000;
+    expect(formatPerfTimeLabel(localTs(9, 5))).toBe('09:05');
+    expect(formatPerfTimeLabel(localTs(14, 0))).toBe('14:00');
+    expect(formatPerfTimeLabel('not-a-number')).toBe('-');
+  });
+
+  it('keeps only buckets with a first-token latency, oldest first', () => {
+    const at = (hour) => new Date(2026, 9, 20, hour, 0, 0).getTime() / 1000;
+    expect(
+      buildLatencyPoints([
+        { ts: at(13), avg_ttft_ms: 30 },
+        { ts: at(11), avg_ttft_ms: 10 },
+        { ts: at(12), avg_ttft_ms: 0 },
+        { ts: at(14), avg_ttft_ms: null },
+        { ts: at(15), avg_ttft_ms: 50 },
+      ]),
+    ).toEqual([
+      { label: '11:00', ttft: 10 },
+      { label: '13:00', ttft: 30 },
+      { label: '15:00', ttft: 50 },
+    ]);
+    expect(buildLatencyPoints(undefined)).toEqual([]);
+
+    const many = Array.from({ length: 300 }, (_, i) => ({
+      ts: at(0) + i * 60,
+      avg_ttft_ms: i + 1,
+    }));
+    const limited = buildLatencyPoints(many);
+    expect(limited).toHaveLength(LATENCY_POINT_LIMIT);
+    expect(limited[0].ttft).toBe(300 - LATENCY_POINT_LIMIT + 1);
+    expect(limited[limited.length - 1].ttft).toBe(300);
   });
 
   it('grades success rates with the same thresholds and colors as the new UI', () => {

@@ -259,3 +259,38 @@ export function buildAvailabilityPoints(series, limit = AVAILABILITY_SAMPLE_LIMI
     .sort((a, b) => a.ts - b.ts)
     .slice(-limit);
 }
+
+/**
+ * bucket_time 可为 minute/5min/hour（setting/perf_metrics_setting/config.go:27-38），
+ * 最细到分钟，因此 HH:mm 在同一窗口内不会重复，可直接作为类目轴的刻度。
+ */
+export function formatPerfTimeLabel(ts) {
+  const date = new Date(Number(ts) * 1000);
+  if (!Number.isFinite(date.getTime())) return '-';
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mm = String(date.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
+// 接口已按 hours 开窗，这里只是 bucket_time=minute 时的点数安全阀。
+export const LATENCY_POINT_LIMIT = 240;
+
+/**
+ * 延迟趋势折线数据点。丢弃 avg_ttft_ms <= 0 的桶（非流式请求不记录 TTFT），
+ * 规则对齐新版 web/src/features/pricing/components/model-details-performance.tsx
+ * 的 toLatencySeries()。
+ */
+export function buildLatencyPoints(series, limit = LATENCY_POINT_LIMIT) {
+  return (Array.isArray(series) ? series : [])
+    .filter((point) => {
+      const ts = Number(point?.ts);
+      const ttft = Number(point?.avg_ttft_ms);
+      return Number.isFinite(ts) && Number.isFinite(ttft) && ttft > 0;
+    })
+    .sort((a, b) => Number(a.ts) - Number(b.ts))
+    .slice(-limit)
+    .map((point) => ({
+      label: formatPerfTimeLabel(point.ts),
+      ttft: Number(point.avg_ttft_ms),
+    }));
+}
