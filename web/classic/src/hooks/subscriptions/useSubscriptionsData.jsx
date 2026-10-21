@@ -100,6 +100,40 @@ export const useSubscriptionsData = () => {
     }
   };
 
+  // 批量重置套餐下所有生效中订阅的已用额度。
+  // 契约：POST /api/subscription/admin/plans/:id/subscriptions/reset（controller/subscription.go:487-515），
+  // body 里的 plan_id 服务端忽略，只认 URL 上的 :id；advance_reset_time 缺省时后端按 true 处理。
+  const resetPlanQuota = async (planRecordOrId, advanceResetTime = true) => {
+    const planId =
+      typeof planRecordOrId === 'number'
+        ? planRecordOrId
+        : planRecordOrId?.plan?.id;
+    if (!planId) return false;
+    setLoading(true);
+    try {
+      const res = await API.post(
+        `/api/subscription/admin/plans/${planId}/subscriptions/reset`,
+        { advance_reset_time: !!advanceResetTime },
+      );
+      if (res.data?.success) {
+        showSuccess(
+          t('已重置 {{num}} 个生效中的订阅', {
+            num: Number(res.data?.data?.reset_count || 0),
+          }),
+        );
+        await loadPlans();
+        return true;
+      }
+      showError(res.data?.message || t('操作失败'));
+      return false;
+    } catch (e) {
+      showError(t('请求失败'));
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Modal control functions
   const closeEdit = () => {
     setShowEdit(false);
@@ -155,6 +189,7 @@ export const useSubscriptionsData = () => {
     // Actions
     loadPlans,
     setPlanEnabled,
+    resetPlanQuota,
     refresh,
     closeEdit,
     openCreate,

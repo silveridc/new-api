@@ -4263,6 +4263,17 @@
     "平均延迟": "Độ trễ trung bình",
     "成功率": "Tỷ lệ thành công",
     "平均首 Token 延迟": "Độ trễ token đầu tiên trung bình",
-    "延迟趋势（近 {{hours}} 小时）": "Xu hướng độ trễ ({{hours}} giờ qua)"
+    "延迟趋势（近 {{hours}} 小时）": "Xu hướng độ trễ ({{hours}} giờ qua)",
+    "重置额度": "Đặt lại hạn ngạch",
+    "重置订阅额度": "Đặt lại hạn ngạch đăng ký",
+    "同时推进下次重置时间": "Đẩy thời điểm đặt lại kế tiếp",
+    "已重置 {{num}} 个生效中的订阅": "Đã đặt lại {{num}} đăng ký còn hiệu lực",
+    "确定重置套餐 {{plan}} 下所有生效中的订阅吗？": "Đặt lại tất cả đăng ký còn hiệu lực của gói {{plan}}?",
+    "确定重置该用户在套餐 {{plan}} 下的生效订阅吗？": "Đặt lại đăng ký còn hiệu lực của gói {{plan}} cho người dùng này?",
+    "需要额度": "Cần",
+    "余额支付": "Thanh toán bằng số dư",
+    "余额不足": "Số dư không đủ",
+    "该套餐不允许使用余额兑换": "Gói này không cho đổi bằng số dư",
+    "订阅购买成功": "Đã mua đăng ký thành công"
   }
 }

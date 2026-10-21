@@ -24,6 +24,7 @@ import SubscriptionsTable from './SubscriptionsTable';
 import SubscriptionsActions from './SubscriptionsActions';
 import SubscriptionsDescription from './SubscriptionsDescription';
 import AddEditSubscriptionModal from './modals/AddEditSubscriptionModal';
+import ResetQuotaModal from './modals/ResetQuotaModal';
 import { useSubscriptionsData } from '../../../hooks/subscriptions/useSubscriptionsData';
 import { useIsMobile } from '../../../hooks/common/useIsMobile';
 import { createCardProPagination } from '../../../helpers/utils';
@@ -46,8 +47,13 @@ const SubscriptionsPage = () => {
     openCreate,
     compactMode,
     setCompactMode,
+    resetPlanQuota,
     t,
   } = subscriptionsData;
+  const [resetPlan, setResetPlan] = useState(null);
+  const resetPlanTitle =
+    resetPlan?.plan?.title ||
+    (resetPlan?.plan?.id ? `#${resetPlan.plan.id}` : '-');
 
   useEffect(() => {
     const loadComplianceStatus = async () => {
@@ -73,6 +79,19 @@ const SubscriptionsPage = () => {
         editingPlan={editingPlan}
         placement={sheetPlacement}
         refresh={refresh}
+        t={t}
+      />
+
+      <ResetQuotaModal
+        visible={!!resetPlan}
+        description={t('确定重置套餐 {{plan}} 下所有生效中的订阅吗？', {
+          plan: resetPlanTitle,
+        })}
+        onCancel={() => setResetPlan(null)}
+        onConfirm={async (advanceResetTime) => {
+          const ok = await resetPlanQuota(resetPlan, advanceResetTime);
+          if (ok) setResetPlan(null);
+        }}
         t={t}
       />
 
@@ -128,6 +147,7 @@ const SubscriptionsPage = () => {
         )}
         <SubscriptionsTable
           {...subscriptionsData}
+          openReset={setResetPlan}
           enableEpay={enableEpay}
           complianceConfirmed={complianceConfirmed}
         />

@@ -32,10 +32,11 @@ import { Crown, CalendarClock, Package } from 'lucide-react';
 import { SiStripe } from 'react-icons/si';
 import { IconCreditCard } from '@douyinfe/semi-icons';
 import { renderQuota } from '../../../helpers';
-import { getCurrencyConfig } from '../../../helpers/render';
+import { getCurrencyConfig, getQuotaPerUnit } from '../../../helpers/render';
 import {
   formatSubscriptionDuration,
   formatSubscriptionResetPeriod,
+  getSubscriptionBalanceQuota,
 } from '../../../helpers/subscriptionFormat';
 
 const { Text } = Typography;
@@ -53,9 +54,11 @@ const SubscriptionPurchaseModal = ({
   enableStripeTopUp = false,
   enableCreemTopUp = false,
   purchaseLimitInfo = null,
+  userQuota = 0,
   onPayStripe,
   onPayCreem,
   onPayEpay,
+  onPayBalance,
 }) => {
   const plan = selectedPlan?.plan;
   const totalAmount = Number(plan?.total_amount || 0);
@@ -74,6 +77,10 @@ const SubscriptionPurchaseModal = ({
   const purchaseCount = Number(purchaseLimitInfo?.count || 0);
   const purchaseLimitReached =
     purchaseLimit > 0 && purchaseCount >= purchaseLimit;
+  // allow_balance_pay 为空按允许处理，与后端 NormalizeDefaults 一致（model/subscription.go:204-207）
+  const allowBalancePay = plan?.allow_balance_pay !== false;
+  const balanceCost = getSubscriptionBalanceQuota(price, getQuotaPerUnit());
+  const insufficientBalance = Number(userQuota || 0) < balanceCost;
 
   return (
     <Modal
@@ -178,6 +185,55 @@ const SubscriptionPurchaseModal = ({
               closeIcon={null}
             />
           )}
+
+          {/* 余额支付：扣的是钱包额度，口径与后端 ceil(price × quota_per_unit) 一致 */}
+          <Card className='!rounded-xl !border-0 bg-slate-50 dark:bg-slate-800'>
+            <div className='space-y-2'>
+              <div className='flex items-center justify-between'>
+                <Text type='tertiary' size='small'>
+                  {t('需要额度')}
+                </Text>
+                <Text size='small'>{renderQuota(balanceCost)}</Text>
+              </div>
+              <div className='flex items-center justify-between'>
+                <Text type='tertiary' size='small'>
+                  {t('当前余额')}
+                </Text>
+                <Text size='small'>{renderQuota(Number(userQuota || 0))}</Text>
+              </div>
+              {!allowBalancePay ? (
+                <Banner
+                  type='warning'
+                  description={t('该套餐不允许使用余额兑换')}
+                  closeIcon={null}
+                  className='!rounded-lg'
+                />
+              ) : (
+                insufficientBalance && (
+                  <Banner
+                    type='warning'
+                    description={t('余额不足')}
+                    closeIcon={null}
+                    className='!rounded-lg'
+                  />
+                )
+              )}
+              <Button
+                theme='solid'
+                type='primary'
+                className='w-full'
+                onClick={onPayBalance}
+                loading={paying}
+                disabled={
+                  purchaseLimitReached ||
+                  !allowBalancePay ||
+                  insufficientBalance
+                }
+              >
+                {t('余额支付')}
+              </Button>
+            </div>
+          </Card>
 
           {hasAnyPayment ? (
             <div className='space-y-3'>

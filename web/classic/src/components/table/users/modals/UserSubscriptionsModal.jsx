@@ -37,6 +37,7 @@ import { API, showError, showSuccess } from '../../../../helpers';
 import { convertUSDToCurrency } from '../../../../helpers/render';
 import { useIsMobile } from '../../../../hooks/common/useIsMobile';
 import CardTable from '../../../common/ui/CardTable';
+import ResetQuotaModal from '../../../table/subscriptions/modals/ResetQuotaModal';
 
 const { Text } = Typography;
 
@@ -84,6 +85,7 @@ const UserSubscriptionsModal = ({ visible, onCancel, user, t, onSuccess }) => {
 
   const [subs, setSubs] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [resetTarget, setResetTarget] = useState(null);
   const pageSize = 10;
 
   const planTitleMap = useMemo(() => {
@@ -150,7 +152,11 @@ const UserSubscriptionsModal = ({ visible, onCancel, user, t, onSuccess }) => {
   };
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible) {
+      // 确认框挂在抽屉里，但 Semi 关闭有动画残留，状态不收掉会短暂浮在用户表上
+      setResetTarget(null);
+      return;
+    }
     setSelectedPlanId(null);
     setCurrentPage(1);
     loadPlans();
@@ -191,6 +197,33 @@ const UserSubscriptionsModal = ({ visible, onCancel, user, t, onSuccess }) => {
       showError(t('请求失败'));
     } finally {
       setCreating(false);
+    }
+  };
+
+  // 契约：POST /api/subscription/admin/users/:id/subscriptions/reset（controller/subscription.go:454-485），
+  // 这里 plan_id 必填（与套餐维度的批量重置不同，那个只认 URL 上的 :id）。
+  const resetSubscriptionQuota = async (sub, advanceResetTime) => {
+    if (!user?.id || !sub?.plan_id) return false;
+    try {
+      const res = await API.post(
+        `/api/subscription/admin/users/${user.id}/subscriptions/reset`,
+        { plan_id: sub.plan_id, advance_reset_time: !!advanceResetTime },
+      );
+      if (res.data?.success) {
+        showSuccess(
+          t('已重置 {{num}} 个生效中的订阅', {
+            num: Number(res.data?.data?.reset_count || 0),
+          }),
+        );
+        await loadUserSubscriptions();
+        onSuccess?.();
+        return true;
+      }
+      showError(res.data?.message || t('操作失败'));
+      return false;
+    } catch (e) {
+      showError(t('请求失败'));
+      return false;
     }
   };
 
@@ -314,7 +347,7 @@ const UserSubscriptionsModal = ({ visible, onCancel, user, t, onSuccess }) => {
       {
         title: '',
         key: 'operate',
-        width: 140,
+        width: 220,
         fixed: 'right',
         render: (_, record) => {
           const sub = record?.subscription;
@@ -325,6 +358,15 @@ const UserSubscriptionsModal = ({ visible, onCancel, user, t, onSuccess }) => {
           const isCancelled = sub?.status === 'cancelled';
           return (
             <Space>
+              <Button
+                size='small'
+                type='warning'
+                theme='light'
+                disabled={!isActive || !sub?.plan_id}
+                onClick={() => setResetTarget(sub)}
+              >
+                {t('重置额度')}
+              </Button>
               <Button
                 size='small'
                 type='warning'
@@ -426,6 +468,24 @@ const UserSubscriptionsModal = ({ visible, onCancel, user, t, onSuccess }) => {
           size='middle'
         />
       </div>
+
+      <ResetQuotaModal
+        visible={!!resetTarget}
+        description={t('确定重置该用户在套餐 {{plan}} 下的生效订阅吗？', {
+          plan:
+            planTitleMap.get(resetTarget?.plan_id) ||
+            (resetTarget?.plan_id ? `#${resetTarget.plan_id}` : '-'),
+        })}
+        onCancel={() => setResetTarget(null)}
+        onConfirm={async (advanceResetTime) => {
+          const ok = await resetSubscriptionQuota(
+            resetTarget,
+            advanceResetTime,
+          );
+          if (ok) setResetTarget(null);
+        }}
+        t={t}
+      />
     </SideSheet>
   );
 };

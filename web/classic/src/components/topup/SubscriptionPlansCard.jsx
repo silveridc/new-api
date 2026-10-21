@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useMemo, useState } from 'react';
+import React, { useContext, useMemo, useState } from 'react';
 import {
   Badge,
   Button,
@@ -32,6 +32,7 @@ import {
 } from '@douyinfe/semi-ui';
 import { API, showError, showSuccess, renderQuota } from '../../helpers';
 import { getCurrencyConfig } from '../../helpers/render';
+import { UserContext } from '../../context/User';
 import { RefreshCw, Sparkles } from 'lucide-react';
 import SubscriptionPurchaseModal from './modals/SubscriptionPurchaseModal';
 import {
@@ -91,6 +92,20 @@ const SubscriptionPlansCard = ({
   const [refreshing, setRefreshing] = useState(false);
 
   const epayMethods = useMemo(() => getEpayMethods(payMethods), [payMethods]);
+  const [userState, userDispatch] = useContext(UserContext);
+
+  // 对齐新版 wallet 的 onPurchaseSuccess={fetchUser}：余额支付成交后 quota 变了，
+  // 顶栏和本页余额都读 UserContext，必须重新拉一次 /api/user/self。
+  const refreshUserQuota = async () => {
+    try {
+      const res = await API.get('/api/user/self');
+      if (res.data?.success && res.data?.data) {
+        userDispatch({ type: 'login', payload: res.data.data });
+      }
+    } catch (e) {
+      // 订阅已成交，这里只是刷新展示，失败不再弹错误打扰用户
+    }
+  };
 
   const openBuy = (p) => {
     setSelectedPlan(p);
@@ -183,6 +198,32 @@ const SubscriptionPlansCard = ({
       if (res.data?.message === 'success') {
         submitEpayForm({ url: res.data.url, params: res.data.data });
         showSuccess(t('已发起支付'));
+        closeBuy();
+      } else {
+        const errorMsg =
+          typeof res.data?.data === 'string'
+            ? res.data.data
+            : res.data?.message || t('支付失败');
+        showError(errorMsg);
+      }
+    } catch (e) {
+      showError(t('支付请求失败'));
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  // 余额支付是同步成交（model/subscription.go:759-830 直接扣 quota 并建订阅+订单），
+  // 没有第三方跳转，成功后要立刻把余额和订阅状态刷回来。
+  const payBalance = async () => {
+    setPaying(true);
+    try {
+      const res = await API.post('/api/subscription/balance/pay', {
+        plan_id: selectedPlan.plan.id,
+      });
+      if (res.data?.success) {
+        showSuccess(t('订阅购买成功'));
+        await Promise.all([reloadSubscriptionSelf?.(), refreshUserQuota()]);
         closeBuy();
       } else {
         const errorMsg =
@@ -684,6 +725,8 @@ const SubscriptionPlansCard = ({
         onPayStripe={payStripe}
         onPayCreem={payCreem}
         onPayEpay={payEpay}
+        onPayBalance={payBalance}
+        userQuota={userState?.user?.quota || 0}
       />
     </>
   );

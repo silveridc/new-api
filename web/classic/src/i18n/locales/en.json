@@ -4368,6 +4368,18 @@
     "近 {{hours}} 小时内无异常": "No incidents in the last {{hours}} hours",
     "近 {{hours}} 小时内有 {{incidents}} 次异常": "{{incidents}} incidents in the last {{hours}} hours",
     "平均首 Token 延迟": "Average first-token latency",
-    "延迟趋势（近 {{hours}} 小时）": "Latency trend (last {{hours}} hours)"
+    "延迟趋势（近 {{hours}} 小时）": "Latency trend (last {{hours}} hours)",
+    "重置额度": "Reset quota",
+    "重置订阅额度": "Reset subscription quota",
+    "确认重置": "Confirm reset",
+    "同时推进下次重置时间": "Advance next reset time",
+    "已重置 {{num}} 个生效中的订阅": "Reset {{num}} active subscriptions",
+    "确定重置套餐 {{plan}} 下所有生效中的订阅吗？": "Reset all active subscriptions under {{plan}}?",
+    "确定重置该用户在套餐 {{plan}} 下的生效订阅吗？": "Reset this user's active {{plan}} subscriptions?",
+    "需要额度": "Required",
+    "余额支付": "Pay with Balance",
+    "余额不足": "Insufficient balance",
+    "该套餐不允许使用余额兑换": "This plan does not allow balance redemption",
+    "订阅购买成功": "Subscription purchased successfully"
   }
 }

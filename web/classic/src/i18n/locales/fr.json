@@ -3729,6 +3729,18 @@
     "平均延迟": "Latence moyenne",
     "成功率": "Taux de réussite",
     "平均首 Token 延迟": "Latence moyenne du premier jeton",
-    "延迟趋势（近 {{hours}} 小时）": "Tendance de latence ({{hours}} dernières heures)"
+    "延迟趋势（近 {{hours}} 小时）": "Tendance de latence ({{hours}} dernières heures)",
+    "重置额度": "Réinitialiser le quota",
+    "重置订阅额度": "Réinitialiser le quota d’abonnement",
+    "确认重置": "Confirmer la réinitialisation",
+    "同时推进下次重置时间": "Avancer la prochaine réinitialisation",
+    "已重置 {{num}} 个生效中的订阅": "{{num}} abonnements actifs réinitialisés",
+    "确定重置套餐 {{plan}} 下所有生效中的订阅吗？": "Réinitialiser tous les abonnements actifs de {{plan}} ?",
+    "确定重置该用户在套餐 {{plan}} 下的生效订阅吗？": "Réinitialiser les abonnements actifs de {{plan}} pour ce user ?",
+    "需要额度": "Requis",
+    "余额支付": "Payer avec le solde",
+    "余额不足": "Solde insuffisant",
+    "该套餐不允许使用余额兑换": "Ce forfait n’autorise pas l’échange par le solde",
+    "订阅购买成功": "Abonnement acheté avec succès"
   }
 }
