@@ -29,9 +29,10 @@ import {
   Card,
 } from '@douyinfe/semi-ui';
 import { API, showError, showSuccess, timestamp2string } from '../../helpers';
-import { marked } from 'marked';
 import { useTranslation } from 'react-i18next';
 import { StatusContext } from '../../context/Status';
+import SystemUpdateDialog from '../common/SystemUpdateDialog';
+import { useSystemUpdate } from '../../hooks/common/useSystemUpdate';
 import Text from '@douyinfe/semi-ui/lib/es/typography/text';
 
 const LEGAL_USER_AGREEMENT_KEY = 'legal.user_agreement';
@@ -52,10 +53,10 @@ const OtherSetting = () => {
   let [loading, setLoading] = useState(false);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [statusState, statusDispatch] = useContext(StatusContext);
-  const [updateData, setUpdateData] = useState({
-    tag_name: '',
-    content: '',
-  });
+  // 检查更新走与顶栏按钮同一套逻辑：GitHub 发行版解析、按用户忽略、结果缓存都在 hook 里。
+  // 旧实现是 fetch Calcium-Ion 仓库再拿字符串相等比较，既跟不上上游改名到 QuantumNous，
+  // 也把「预发布 / 多位版本号 / 请求失败」一律当成无更新。
+  const update = useSystemUpdate();
 
   const updateOption = async (key, value) => {
     setLoading(true);
@@ -81,7 +82,6 @@ const OtherSetting = () => {
     HomePageContent: false,
     About: false,
     Footer: false,
-    CheckUpdate: false,
     FrontendTheme: false,
   });
   const handleInputChange = async (value, e) => {
@@ -229,57 +229,6 @@ const OtherSetting = () => {
     }
   };
 
-  const checkUpdate = async () => {
-    try {
-      setLoadingInput((loadingInput) => ({
-        ...loadingInput,
-        CheckUpdate: true,
-      }));
-      // Use a CORS proxy to avoid direct cross-origin requests to GitHub API
-      // Option 1: Use a public CORS proxy service
-      // const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
-      // const res = await API.get(
-      //   `${proxyUrl}https://api.github.com/repos/Calcium-Ion/new-api/releases/latest`,
-      // );
-
-      // Option 2: Use the JSON proxy approach which often works better with GitHub API
-      const res = await fetch(
-        'https://api.github.com/repos/Calcium-Ion/new-api/releases/latest',
-        {
-          headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-            // Adding User-Agent which is often required by GitHub API
-            'User-Agent': 'new-api-update-checker',
-          },
-        },
-      ).then((response) => response.json());
-
-      // Option 3: Use a local proxy endpoint
-      // Create a cached version of the response to avoid frequent GitHub API calls
-      // const res = await API.get('/api/status/github-latest-release');
-
-      const { tag_name, body } = res;
-      if (tag_name === statusState?.status?.version) {
-        showSuccess(`已是最新版本：${tag_name}`);
-      } else {
-        setUpdateData({
-          tag_name: tag_name,
-          content: marked.parse(body),
-        });
-        setShowUpdateModal(true);
-      }
-    } catch (error) {
-      console.error('Failed to check for updates:', error);
-      showError('检查更新失败，请稍后再试');
-    } finally {
-      setLoadingInput((loadingInput) => ({
-        ...loadingInput,
-        CheckUpdate: false,
-      }));
-    }
-  };
-
   const switchToDefaultFrontend = () => {
     Modal.confirm({
       title: t('切换到新版前端'),
@@ -340,14 +289,6 @@ const OtherSetting = () => {
     getOptions();
   }, []);
 
-  // Function to open GitHub release page
-  const openGitHubRelease = () => {
-    window.open(
-      `https://github.com/Calcium-Ion/new-api/releases/tag/${updateData.tag_name}`,
-      '_blank',
-    );
-  };
-
   const getStartTimeString = () => {
     const timestamp = statusState?.status?.start_time;
     return statusState.status ? timestamp2string(timestamp) : '';
@@ -377,8 +318,8 @@ const OtherSetting = () => {
                     </Text>
                     <Button
                       type='primary'
-                      onClick={checkUpdate}
-                      loading={loadingInput['CheckUpdate']}
+                      onClick={() => setShowUpdateModal(true)}
+                      loading={update.checking}
                     >
                       {t('检查更新')}
                     </Button>
@@ -544,25 +485,11 @@ const OtherSetting = () => {
           </Card>
         </Form>
       </Col>
-      <Modal
-        title={t('新版本') + '：' + updateData.tag_name}
+      <SystemUpdateDialog
         visible={showUpdateModal}
         onCancel={() => setShowUpdateModal(false)}
-        footer={[
-          <Button
-            key='details'
-            type='primary'
-            onClick={() => {
-              setShowUpdateModal(false);
-              openGitHubRelease();
-            }}
-          >
-            {t('详情')}
-          </Button>,
-        ]}
-      >
-        <div dangerouslySetInnerHTML={{ __html: updateData.content }}></div>
-      </Modal>
+        update={update}
+      />
     </Row>
   );
 };
