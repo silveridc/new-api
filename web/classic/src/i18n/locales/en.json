@@ -4415,6 +4415,12 @@
     "OAuth 授权窗口已关闭，请重新发起验证。": "The OAuth window was closed. Start verification again.",
     "OAuth 授权超时，请返回原窗口重试。": "OAuth authorization timed out. Return to the original window and try again.",
     "验证完成，可以关闭本窗口。": "Verification complete. You can close this window.",
-    "已完成授权，正在返回原窗口…": "Authorization complete. Returning to the original window..."
+    "已完成授权，正在返回原窗口…": "Authorization complete. Returning to the original window...",
+    "成功删除 {{count}} 个模型": "Successfully deleted {{count}} model(s)",
+    "同时从所有渠道移除所选模型": "Also remove from all channels",
+    "仅精确匹配的模型支持从渠道移除": "Only available for exact matching",
+    "同时移除模型定价配置": "Also remove pricing",
+    "移除后内置定价可能重新生效": "Built-in pricing may become effective again.",
+    "模型定价由超级管理员管理": "Model pricing is managed by a super administrator."
   }
 }

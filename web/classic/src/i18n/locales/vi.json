@@ -4335,6 +4335,13 @@
     "暂无访问令牌": "Chưa có token truy cập",
     "令牌已创建": "Token đã tạo",
     "我已保存": "Tôi đã lưu",
-    "令牌只显示这一次，关闭后无法再次查看，请立即保存。": "Token chỉ hiển thị một lần. Hãy lưu ngay, đóng lại sẽ không xem lại được."
+    "令牌只显示这一次，关闭后无法再次查看，请立即保存。": "Token chỉ hiển thị một lần. Hãy lưu ngay, đóng lại sẽ không xem lại được.",
+    "成功删除 {{count}} 个模型": "Đã xóa {{count}} mô hình",
+    "确定要删除所选的 {{count}} 个模型吗？": "Xóa {{count}} mô hình đã chọn?",
+    "同时从所有渠道移除所选模型": "Đồng thời xóa khỏi mọi kênh",
+    "仅精确匹配的模型支持从渠道移除": "Chỉ xóa khỏi kênh với mô hình khớp chính xác",
+    "同时移除模型定价配置": "Đồng thời xóa định giá",
+    "移除后内置定价可能重新生效": "Định giá tích hợp có thể quay lại hiệu lực.",
+    "模型定价由超级管理员管理": "Định giá mô hình do quản trị viên cao nhất quản lý"
   }
 }

@@ -3802,6 +3802,13 @@
     "暂无访问令牌": "Aucun jeton d'accès",
     "令牌已创建": "Jeton créé",
     "我已保存": "J’ai enregistré",
-    "令牌只显示这一次，关闭后无法再次查看，请立即保存。": "Le jeton n’affiche qu’une seule fois. Enregistrez-le maintenant, il ne sera plus visible."
+    "令牌只显示这一次，关闭后无法再次查看，请立即保存。": "Le jeton n’affiche qu’une seule fois. Enregistrez-le maintenant, il ne sera plus visible.",
+    "成功删除 {{count}} 个模型": "{{count}} modèle(s) supprimé(s)",
+    "确定要删除所选的 {{count}} 个模型吗？": "Supprimer les {{count}} modèle(s) sélectionné(s) ?",
+    "同时从所有渠道移除所选模型": "Retirer aussi de tous les canaux",
+    "仅精确匹配的模型支持从渠道移除": "Retrait des canaux réservé à la correspondance exacte",
+    "同时移除模型定价配置": "Supprimer aussi la tarification",
+    "移除后内置定价可能重新生效": "La tarification intégrée peut redevenir active.",
+    "模型定价由超级管理员管理": "La tarification des modèles est gérée par un super administrateur."
   }
 }

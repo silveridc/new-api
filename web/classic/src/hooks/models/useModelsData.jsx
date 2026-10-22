@@ -375,37 +375,38 @@ export const useModelsData = () => {
   };
 
   // Batch delete models
-  const batchDeleteModels = async () => {
+  // 契约来源：POST /api/models/delete（controller/model_meta.go BatchDeleteModelMeta），
+  // 单事务删除 1..1000 个模型，可选同步清理渠道绑定与定价；remove_pricing 仅 Root 可用。
+  const batchDeleteModels = async (options = {}) => {
     if (selectedKeys.length === 0) {
       showError(t('请至少选择一个模型'));
-      return;
+      return false;
     }
 
     try {
-      const deletePromises = selectedKeys.map((model) =>
-        API.delete(`/api/models/${model.id}`),
-      );
-
-      const results = await Promise.all(deletePromises);
-      let successCount = 0;
-
-      results.forEach((res, index) => {
-        if (res.data.success) {
-          successCount++;
-        } else {
-          showError(
-            `删除模型 ${selectedKeys[index].model_name} 失败: ${res.data.message}`,
-          );
-        }
+      const res = await API.post('/api/models/delete', {
+        model_ids: selectedKeys.map((model) => model.id),
+        remove_from_channels: Boolean(options.removeFromChannels),
+        remove_pricing: Boolean(options.removePricing),
       });
 
-      if (successCount > 0) {
-        showSuccess(t(`成功删除 ${successCount} 个模型`));
-        setSelectedKeys([]);
-        await refresh();
+      const { success, message, data } = res.data;
+      if (!success) {
+        showError(message);
+        return false;
       }
+
+      showSuccess(
+        t('成功删除 {{count}} 个模型', {
+          count: data?.deleted_count ?? selectedKeys.length,
+        }),
+      );
+      setSelectedKeys([]);
+      await refresh();
+      return true;
     } catch (error) {
-      showError(t('批量删除失败'));
+      showError(error?.response?.data?.message || error);
+      return false;
     }
   };
 

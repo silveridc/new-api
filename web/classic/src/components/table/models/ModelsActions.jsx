@@ -21,8 +21,15 @@ import React, { useState } from 'react';
 import MissingModelsModal from './modals/MissingModelsModal';
 import PrefillGroupManagement from './modals/PrefillGroupManagement';
 import EditPrefillGroupModal from './modals/EditPrefillGroupModal';
-import { Button, Modal, Popover, RadioGroup, Radio } from '@douyinfe/semi-ui';
-import { showSuccess, showError, copy } from '../../../helpers';
+import {
+  Button,
+  Checkbox,
+  Modal,
+  Popover,
+  RadioGroup,
+  Radio,
+} from '@douyinfe/semi-ui';
+import { showSuccess, showError, copy, isRoot } from '../../../helpers';
 import CompactModeToggle from '../../common/ui/CompactModeToggle';
 import SelectionNotification from './components/SelectionNotification';
 import UpstreamConflictModal from './modals/UpstreamConflictModal';
@@ -49,6 +56,9 @@ const ModelsActions = ({
 }) => {
   // Modal states
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [removeFromChannels, setRemoveFromChannels] = useState(false);
+  const [removePricing, setRemovePricing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [showMissingModal, setShowMissingModal] = useState(false);
   const [showGroupManagement, setShowGroupManagement] = useState(false);
   const [showAddPrefill, setShowAddPrefill] = useState(false);
@@ -72,15 +82,43 @@ const ModelsActions = ({
     await syncUpstream?.({ locale });
   };
 
+  // 渠道清理要求整批都是精确匹配，后端 DeleteModelMetadata 否则整体拒绝
+  const canEditPricing = isRoot();
+  const supportsChannelRemoval = selectedKeys.every(
+    (model) => (model.name_rule ?? 0) === 0,
+  );
+
+  const resetDeleteOptions = () => {
+    setRemoveFromChannels(false);
+    setRemovePricing(false);
+    setDeleting(false);
+  };
+
   // Handle delete selected models with confirmation
   const handleDeleteSelectedModels = () => {
+    resetDeleteOptions();
     setShowDeleteModal(true);
   };
 
-  // Handle delete confirmation
-  const handleConfirmDelete = () => {
-    batchDeleteModels();
+  const handleCancelDelete = () => {
+    if (deleting) return;
+    resetDeleteOptions();
     setShowDeleteModal(false);
+  };
+
+  // Handle delete confirmation
+  const handleConfirmDelete = async () => {
+    setDeleting(true);
+    const success = await batchDeleteModels({
+      removeFromChannels: removeFromChannels && supportsChannelRemoval,
+      removePricing: removePricing && canEditPricing,
+    });
+    if (success) {
+      resetDeleteOptions();
+      setShowDeleteModal(false);
+    } else {
+      setDeleting(false);
+    }
   };
 
   // Handle clear selection
@@ -205,14 +243,51 @@ const ModelsActions = ({
       <Modal
         title={t('批量删除模型')}
         visible={showDeleteModal}
-        onCancel={() => setShowDeleteModal(false)}
+        onCancel={handleCancelDelete}
         onOk={handleConfirmDelete}
         type='warning'
+        okText={t('确认删除')}
+        cancelText={t('取消')}
+        okButtonProps={{ type: 'danger', theme: 'solid' }}
+        confirmLoading={deleting}
+        maskClosable={false}
       >
-        <div>
-          {t('确定要删除所选的 {{count}} 个模型吗？', {
-            count: selectedKeys.length,
-          })}
+        <div className='space-y-3'>
+          <div>
+            {t('确定要删除所选的 {{count}} 个模型吗？', {
+              count: selectedKeys.length,
+            })}
+          </div>
+          <div>
+            <Checkbox
+              checked={removeFromChannels && supportsChannelRemoval}
+              disabled={deleting || !supportsChannelRemoval}
+              onChange={(event) => setRemoveFromChannels(event.target.checked)}
+            >
+              {t('同时从所有渠道移除所选模型')}
+            </Checkbox>
+            {!supportsChannelRemoval && (
+              <div className='text-[var(--semi-color-text-2)] text-sm'>
+                {t('仅精确匹配的模型支持从渠道移除')}
+              </div>
+            )}
+          </div>
+          <div>
+            <Checkbox
+              checked={removePricing}
+              disabled={deleting || !canEditPricing}
+              onChange={(event) => setRemovePricing(event.target.checked)}
+            >
+              {t('同时移除模型定价配置')}
+            </Checkbox>
+            {(removePricing || !canEditPricing) && (
+              <div className='text-[var(--semi-color-text-2)] text-sm'>
+                {canEditPricing
+                  ? t('移除后内置定价可能重新生效')
+                  : t('模型定价由超级管理员管理')}
+              </div>
+            )}
+          </div>
         </div>
       </Modal>
 
