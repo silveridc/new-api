@@ -3809,6 +3809,16 @@
     "仅精确匹配的模型支持从渠道移除": "Retrait des canaux réservé à la correspondance exacte",
     "同时移除模型定价配置": "Supprimer aussi la tarification",
     "移除后内置定价可能重新生效": "La tarification intégrée peut redevenir active.",
-    "模型定价由超级管理员管理": "La tarification des modèles est gérée par un super administrateur."
+    "模型定价由超级管理员管理": "La tarification des modèles est gérée par un super administrateur.",
+    "插件声明的访问范围": "Portée d'accès déclarée par l'extension",
+    "额外请求域名": "Domaines de requête supplémentaires",
+    "未声明额外域名": "Aucun domaine supplémentaire déclaré",
+    "默认 API 地址": "Adresse d'API par défaut",
+    "未声明": "Non déclaré",
+    "上游鉴权": "Authentification en amont",
+    "无（插件声明）": "Aucune (déclaration de l’extension)",
+    "OAuth 2.0 服务账号": "Compte de service OAuth 2.0",
+    "未声明，上游可能仍需 API Key": "Non déclaré ; une clé API peut rester requise.",
+    "以上内容由网关解析插件声明得到；除上述域名外，所绑定渠道自身的 API 地址仍可被访问。绑定渠道前请确认。": "Valeurs issues de l'analyse de la déclaration par la passerelle. En dehors de ces domaines, l'adresse API du canal lié reste accessible. Vérifiez avant de lier un canal."
   }
 }

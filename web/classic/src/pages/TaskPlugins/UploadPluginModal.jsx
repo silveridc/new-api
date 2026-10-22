@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Banner,
   Button,
+  Descriptions,
   Input,
   Modal,
   Spin,
@@ -27,6 +28,7 @@ import {
 } from '@douyinfe/semi-ui';
 import { Upload } from 'lucide-react';
 
+import { getPluginAccessFacts } from '../../helpers/pluginAccessFacts';
 import {
   activateTaskPlugin,
   uploadTaskPlugin,
@@ -62,7 +64,10 @@ function readFileDataUri(file) {
 /**
  * 上传插件弹窗。契约：POST /api/plugin/task，JSON body
  * { source, remark, icon? }（后端 taskPluginUploadRequest，非 multipart）。
- * 上传成功且 plugin.active === false 时提供「立即激活」。
+ * 成功后除「立即激活」（plugin.active === false 时才给）以外，还展示
+ * data.meta 里网关解析出的访问范围（allowedHosts/baseUrl/auth.type）：
+ * 后端是拿 moejs 真跑过声明才得到这三项的，比前端静态猜可靠；
+ * 真正让插件能发请求的是「绑定渠道」，所以提示落在绑定动作上。
  */
 const UploadPluginModal = ({ visible, onClose, initialKey, onUploaded }) => {
   const { t } = useTranslation();
@@ -224,6 +229,22 @@ const UploadPluginModal = ({ visible, onClose, initialKey, onUploaded }) => {
         <p className='mt-2'>
           {result.meta?.name}（{result.meta?.key}）· v{result.meta?.version}
         </p>
+        <div className='mt-3'>
+          <Typography.Text strong size='small'>
+            {t('插件声明的访问范围')}
+          </Typography.Text>
+          <Descriptions
+            row
+            size='small'
+            className='!mt-1'
+            data={getPluginAccessFacts(result.meta, t)}
+          />
+          <Typography.Text type='tertiary' size='small'>
+            {t(
+              '以上内容由网关解析插件声明得到；除上述域名外，所绑定渠道自身的 API 地址仍可被访问。绑定渠道前请确认。',
+            )}
+          </Typography.Text>
+        </div>
         {error ? (
           <Banner type='danger' closeIcon={null} description={error} />
         ) : null}

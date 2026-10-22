@@ -4342,6 +4342,16 @@
     "仅精确匹配的模型支持从渠道移除": "Chỉ xóa khỏi kênh với mô hình khớp chính xác",
     "同时移除模型定价配置": "Đồng thời xóa định giá",
     "移除后内置定价可能重新生效": "Định giá tích hợp có thể quay lại hiệu lực.",
-    "模型定价由超级管理员管理": "Định giá mô hình do quản trị viên cao nhất quản lý"
+    "模型定价由超级管理员管理": "Định giá mô hình do quản trị viên cao nhất quản lý",
+    "插件声明的访问范围": "Phạm vi truy cập plugin khai báo",
+    "额外请求域名": "Tên miền yêu cầu bổ sung",
+    "未声明额外域名": "Không khai báo tên miền bổ sung",
+    "默认 API 地址": "Địa chỉ API mặc định",
+    "未声明": "Không khai báo",
+    "上游鉴权": "Xác thực thượng nguồn",
+    "无（插件声明）": "Không (theo khai báo plugin)",
+    "OAuth 2.0 服务账号": "Tài khoản dịch vụ OAuth 2.0",
+    "未声明，上游可能仍需 API Key": "Không khai báo; thượng nguồn vẫn có thể cần API key.",
+    "以上内容由网关解析插件声明得到；除上述域名外，所绑定渠道自身的 API 地址仍可被访问。绑定渠道前请确认。": "Các giá trị này do cổng phân tích khai báo của plugin mà có. Ngoài các tên miền trên, địa chỉ API của kênh đã liên kết vẫn truy cập được. Hãy xác nhận trước khi liên kết kênh."
   }
 }

@@ -31,6 +31,7 @@ import {
 } from '@douyinfe/semi-ui';
 import { Play, Trash2 } from 'lucide-react';
 
+import { getPluginAccessFacts } from '../../helpers/pluginAccessFacts';
 import {
   activateTaskPlugin,
   deleteTaskPluginVersion,
@@ -48,6 +49,9 @@ export const PluginDetailModal = ({ plugin, visible, onClose }) => {
 
   useEffect(() => {
     if (!visible || !plugin?.meta?.key) return;
+    // 详情接口是异步的：不清掉上一次的 detail 就会在加载期间把 A 插件的
+    // meta（含声明的请求域）当成刚点开的 B 插件显示。
+    setDetail(null);
     setLoading(true);
     setError('');
     getTaskPlugin(plugin.meta.key)
@@ -100,6 +104,15 @@ export const PluginDetailModal = ({ plugin, visible, onClose }) => {
             </a>
           </p>
         ) : null}
+        <Typography.Text strong size='small'>
+          {t('插件声明的访问范围')}
+        </Typography.Text>
+        <Descriptions
+          row
+          size='small'
+          className='!mb-3'
+          data={getPluginAccessFacts(meta, t)}
+        />
         {error ? <Banner type='danger' closeIcon={null} description={error} /> : null}
         <Typography.Text strong size='small'>
           {t('插件源码')}

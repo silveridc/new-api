@@ -4421,6 +4421,16 @@
     "仅精确匹配的模型支持从渠道移除": "Only available for exact matching",
     "同时移除模型定价配置": "Also remove pricing",
     "移除后内置定价可能重新生效": "Built-in pricing may become effective again.",
-    "模型定价由超级管理员管理": "Model pricing is managed by a super administrator."
+    "模型定价由超级管理员管理": "Model pricing is managed by a super administrator.",
+    "插件声明的访问范围": "Plugin-declared access scope",
+    "额外请求域名": "Additional request domains",
+    "未声明额外域名": "No extra domains declared",
+    "默认 API 地址": "Default API address",
+    "未声明": "Not declared",
+    "上游鉴权": "Upstream authentication",
+    "无（插件声明）": "None (per plugin declaration)",
+    "OAuth 2.0 服务账号": "OAuth 2.0 service account",
+    "未声明，上游可能仍需 API Key": "Not declared; an API key may still be required.",
+    "以上内容由网关解析插件声明得到；除上述域名外，所绑定渠道自身的 API 地址仍可被访问。绑定渠道前请确认。": "These values come from the gateway parsing the plugin declaration. Beyond these domains, the API address of any bound channel remains reachable. Confirm before binding a channel."
   }
 }
