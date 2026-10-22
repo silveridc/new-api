@@ -4356,6 +4356,16 @@
     "余额不足提醒": "Nhắc nhở số dư thấp",
     "余额低于下方阈值时，通过所选方式提醒你一次": "Nhắc bạn một lần khi số dư giảm xuống dưới ngưỡng bên dưới",
     "渠道通知": "Thông báo kênh",
-    "渠道被自动禁用或重新启用，或全部渠道测试完成时，通过所选方式通知你；仅管理员可用。": "Thông báo khi kênh bị vô hiệu hóa hoặc bật lại tự động, hoặc khi hoàn tất kiểm tra tất cả kênh. Chỉ dành cho quản trị viên."
+    "渠道被自动禁用或重新启用，或全部渠道测试完成时，通过所选方式通知你；仅管理员可用。": "Thông báo khi kênh bị vô hiệu hóa hoặc bật lại tự động, hoặc khi hoàn tất kiểm tra tất cả kênh. Chỉ dành cho quản trị viên.",
+    "配置邮件发送": "Cấu hình gửi email",
+    "保存邮件设置": "Lưu cài đặt email",
+    "邮件发送方式": "Phương thức gửi email",
+    "只有选中的方式会发送邮件，另一种方式已保存的设置会保留": "Chỉ phương thức đang chọn gửi email; cài đặt đã lưu của phương thức kia được giữ nguyên.",
+    "Resend 发件人": "Người gửi Resend",
+    "可写成「显示名 <邮箱>」，发件域名需先在 Resend 完成验证": "Có thể viết theo dạng \"Tên hiển thị <email>\". Tên miền gửi cần được xác minh trong Resend trước.",
+    "Resend API Key": "Khóa API Resend",
+    "留空表示不修改": "Để trống nếu không sửa",
+    "已配置 API Key": "Đã cấu hình khóa API",
+    "尚未配置 API Key": "Chưa cấu hình khóa API"
   }
 }

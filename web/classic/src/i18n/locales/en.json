@@ -4435,6 +4435,16 @@
     "余额不足提醒": "Low balance reminder",
     "余额低于下方阈值时，通过所选方式提醒你一次": "Remind me once when your balance drops below the threshold below",
     "渠道通知": "Channel notifications",
-    "渠道被自动禁用或重新启用，或全部渠道测试完成时，通过所选方式通知你；仅管理员可用。": "Notify you when a channel is automatically disabled or re-enabled, or when a test of all channels finishes. Admins only."
+    "渠道被自动禁用或重新启用，或全部渠道测试完成时，通过所选方式通知你；仅管理员可用。": "Notify you when a channel is automatically disabled or re-enabled, or when a test of all channels finishes. Admins only.",
+    "配置邮件发送": "Configure Email Sending",
+    "保存邮件设置": "Save Email Settings",
+    "邮件发送方式": "Email sending method",
+    "只有选中的方式会发送邮件，另一种方式已保存的设置会保留": "Only the selected method sends email. Settings saved for the other method are kept.",
+    "Resend 发件人": "Resend sender",
+    "可写成「显示名 <邮箱>」，发件域名需先在 Resend 完成验证": "You can use the \"Display Name <email>\" form. Verify the sending domain in Resend first.",
+    "Resend API Key": "Resend API Key",
+    "留空表示不修改": "Leave blank to keep unchanged",
+    "已配置 API Key": "API Key configured",
+    "尚未配置 API Key": "No API Key configured yet"
   }
 }

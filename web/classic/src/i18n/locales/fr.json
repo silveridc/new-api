@@ -3823,6 +3823,16 @@
     "余额不足提醒": "Alerte de solde faible",
     "余额低于下方阈值时，通过所选方式提醒你一次": "M'avertir une fois lorsque le solde passe sous le seuil ci-dessous",
     "渠道通知": "Notifications des canaux",
-    "渠道被自动禁用或重新启用，或全部渠道测试完成时，通过所选方式通知你；仅管理员可用。": "Vous informer lorsqu'un canal est désactivé ou réactivé automatiquement, ou à la fin d'un test de tous les canaux. Réservé aux administrateurs."
+    "渠道被自动禁用或重新启用，或全部渠道测试完成时，通过所选方式通知你；仅管理员可用。": "Vous informer lorsqu'un canal est désactivé ou réactivé automatiquement, ou à la fin d'un test de tous les canaux. Réservé aux administrateurs.",
+    "配置邮件发送": "Configurer l'envoi d'e-mails",
+    "保存邮件设置": "Enregistrer les paramètres e-mail",
+    "邮件发送方式": "Méthode d'envoi d'e-mails",
+    "只有选中的方式会发送邮件，另一种方式已保存的设置会保留": "Seule la méthode sélectionnée envoie des e-mails. Les paramètres de l'autre méthode restent enregistrés.",
+    "Resend 发件人": "Expéditeur Resend",
+    "可写成「显示名 <邮箱>」，发件域名需先在 Resend 完成验证": "Format « Nom affiché <e-mail> » accepté. Le domaine d’envoi doit être vérifié dans Resend au préalable.",
+    "Resend API Key": "Clé API Resend",
+    "留空表示不修改": "Laisser vide pour ne rien modifier",
+    "已配置 API Key": "Clé API configurée",
+    "尚未配置 API Key": "Aucune clé API configurée"
   }
 }

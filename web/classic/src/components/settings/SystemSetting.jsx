@@ -42,6 +42,7 @@ import {
 } from '../../helpers';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
+import { buildEmailOptionWrites } from '../../helpers/emailSettings';
 import CustomOAuthSetting from './CustomOAuthSetting';
 
 const SystemSetting = () => {
@@ -69,6 +70,9 @@ const SystemSetting = () => {
     SMTPAccount: '',
     SMTPFrom: '',
     SMTPToken: '',
+    EmailProvider: 'smtp',
+    ResendApiKey: '',
+    ResendFrom: '',
     WorkerUrl: '',
     WorkerValidKey: '',
     WorkerAllowHttpImageRequestEnabled: '',
@@ -121,6 +125,9 @@ const SystemSetting = () => {
     useState(false);
   const [linuxDOOAuthEnabled, setLinuxDOOAuthEnabled] = useState(false);
   const [emailToAdd, setEmailToAdd] = useState('');
+  // ResendApiKey 只写不读（GET /api/option 按敏感后缀过滤掉），后端改为回传
+  // 一个只读的 ResendKeyConfigured 状态，用它告诉管理员「已配过没有」。
+  const [resendKeyConfigured, setResendKeyConfigured] = useState(false);
   const [domainFilterMode, setDomainFilterMode] = useState(true);
   const [ipFilterMode, setIpFilterMode] = useState(true);
   const [domainList, setDomainList] = useState([]);
@@ -205,6 +212,14 @@ const SystemSetting = () => {
           case 'passkey.user_verification':
             // 确保有默认值
             item.value = item.value || 'preferred';
+            break;
+          case 'EmailProvider':
+            // 只认后端允许的两个取值，其余一律回落到 smtp：
+            // 否则单选框会选中一个不存在的项，保存时又被后端拒掉。
+            item.value = item.value === 'resend' ? 'resend' : 'smtp';
+            break;
+          case 'ResendKeyConfigured':
+            setResendKeyConfigured(item.value === 'true');
             break;
           case 'Price':
           case 'MinTopUp':
@@ -319,34 +334,56 @@ const SystemSetting = () => {
     await updateOptions([{ key: 'ServerAddress', value: ServerAddress }]);
   };
 
-  const submitSMTP = async () => {
-    const options = [];
+  // 邮件发送方式与 Resend 凭据是相互关联的三项，必须串行、按顺序写：
+  // 后端对任一项都用「合并后的当前设置」做整体校验（model/option.go:237-261），
+  // 并行发（updateOptions 的默认行为）会让校验读到中间态而误报失败。
+  const saveEmailOptions = async (options) => {
+    setLoading(true);
+    try {
+      for (const opt of options) {
+        const res = await API.put('/api/option/', {
+          key: opt.key,
+          value: opt.value,
+        });
+        if (!res.data.success) {
+          showError(res.data.message);
+          setLoading(false);
+          return false;
+        }
+      }
+    } catch (error) {
+      showError(t('更新失败'));
+      setLoading(false);
+      return false;
+    }
+    setLoading(false);
+    return true;
+  };
 
-    if (originInputs['SMTPServer'] !== inputs.SMTPServer) {
-      options.push({ key: 'SMTPServer', value: inputs.SMTPServer });
-    }
-    if (originInputs['SMTPAccount'] !== inputs.SMTPAccount) {
-      options.push({ key: 'SMTPAccount', value: inputs.SMTPAccount });
-    }
-    if (originInputs['SMTPFrom'] !== inputs.SMTPFrom) {
-      options.push({ key: 'SMTPFrom', value: inputs.SMTPFrom });
-    }
-    if (
-      originInputs['SMTPPort'] !== inputs.SMTPPort &&
-      inputs.SMTPPort !== ''
-    ) {
-      options.push({ key: 'SMTPPort', value: inputs.SMTPPort });
-    }
-    if (
-      originInputs['SMTPToken'] !== inputs.SMTPToken &&
-      inputs.SMTPToken !== ''
-    ) {
-      options.push({ key: 'SMTPToken', value: inputs.SMTPToken });
+  const submitEmailSettings = async () => {
+    const options = buildEmailOptionWrites(originInputs, inputs);
+    if (options.length === 0) {
+      return;
     }
 
-    if (options.length > 0) {
-      await updateOptions(options);
+    if (!(await saveEmailOptions(options))) {
+      return;
     }
+
+    showSuccess(t('更新成功'));
+    // 写成功的项抬进 diff 基线，否则下次点保存会把同一份凭据再发一遍
+    const applied = {};
+    options.forEach((opt) => {
+      applied[opt.key] = opt.value;
+    });
+    if ('ResendApiKey' in applied) {
+      // 只写字段保存后必须清空：输入框里留着值，下一次保存会把它重复提交
+      applied.ResendApiKey = '';
+      setResendKeyConfigured(true);
+      formApiRef.current.setValue('ResendApiKey', '');
+    }
+    setOriginInputs((prev) => ({ ...prev, ...applied }));
+    setInputs((prev) => ({ ...prev, ...applied }));
   };
 
   const submitEmailDomainWhitelist = async () => {
@@ -695,6 +732,9 @@ const SystemSetting = () => {
     await updateOptions([{ key: 'PasswordLoginEnabled', value: false }]);
     setShowPasswordLoginConfirmModal(false);
   };
+
+  const emailProvider = inputs.EmailProvider === 'resend' ? 'resend' : 'smtp';
+  const smtpActive = emailProvider === 'smtp';
 
   return (
     <div>
@@ -1291,8 +1331,21 @@ const SystemSetting = () => {
                 </Form.Section>
               </Card>
               <Card>
-                <Form.Section text={t('配置 SMTP')}>
+                <Form.Section text={t('配置邮件发送')}>
                   <Text>{t('用以支持系统的邮件发送')}</Text>
+                  <Form.RadioGroup
+                    field='EmailProvider'
+                    label={t('邮件发送方式')}
+                    style={{ marginTop: 16, marginBottom: 0 }}
+                  >
+                    <Radio value='smtp'>SMTP</Radio>
+                    <Radio value='resend'>Resend API</Radio>
+                  </Form.RadioGroup>
+                  <Text type='tertiary' size='small'>
+                    {t(
+                      '只有选中的方式会发送邮件，另一种方式已保存的设置会保留',
+                    )}
+                  </Text>
                   <Row
                     gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
                   >
@@ -1300,13 +1353,22 @@ const SystemSetting = () => {
                       <Form.Input
                         field='SMTPServer'
                         label={t('SMTP 服务器地址')}
+                        disabled={!smtpActive}
                       />
                     </Col>
                     <Col xs={24} sm={24} md={8} lg={8} xl={8}>
-                      <Form.Input field='SMTPPort' label={t('SMTP 端口')} />
+                      <Form.Input
+                        field='SMTPPort'
+                        label={t('SMTP 端口')}
+                        disabled={!smtpActive}
+                      />
                     </Col>
                     <Col xs={24} sm={24} md={8} lg={8} xl={8}>
-                      <Form.Input field='SMTPAccount' label={t('SMTP 账户')} />
+                      <Form.Input
+                        field='SMTPAccount'
+                        label={t('SMTP 账户')}
+                        disabled={!smtpActive}
+                      />
                     </Col>
                   </Row>
                   <Row
@@ -1317,6 +1379,7 @@ const SystemSetting = () => {
                       <Form.Input
                         field='SMTPFrom'
                         label={t('SMTP 发送者邮箱')}
+                        disabled={!smtpActive}
                       />
                     </Col>
                     <Col xs={24} sm={24} md={8} lg={8} xl={8}>
@@ -1324,6 +1387,7 @@ const SystemSetting = () => {
                         field='SMTPToken'
                         label={t('SMTP 访问凭证')}
                         type='password'
+                        disabled={!smtpActive}
                         placeholder='敏感信息不会发送到前端显示'
                       />
                     </Col>
@@ -1331,6 +1395,7 @@ const SystemSetting = () => {
                       <Form.Checkbox
                         field='SMTPSSLEnabled'
                         noLabel
+                        disabled={!smtpActive}
                         onChange={(e) =>
                           handleCheckboxChange('SMTPSSLEnabled', e)
                         }
@@ -1340,6 +1405,7 @@ const SystemSetting = () => {
                       <Form.Checkbox
                         field='SMTPForceAuthLogin'
                         noLabel
+                        disabled={!smtpActive}
                         onChange={(e) =>
                           handleCheckboxChange('SMTPForceAuthLogin', e)
                         }
@@ -1348,7 +1414,39 @@ const SystemSetting = () => {
                       </Form.Checkbox>
                     </Col>
                   </Row>
-                  <Button onClick={submitSMTP}>{t('保存 SMTP 设置')}</Button>
+                  <Row
+                    gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
+                    style={{ marginTop: 16 }}
+                  >
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
+                      <Form.Input
+                        field='ResendFrom'
+                        label={t('Resend 发件人')}
+                        disabled={smtpActive}
+                        placeholder='noreply@example.com'
+                        extraText={t(
+                          '可写成「显示名 <邮箱>」，发件域名需先在 Resend 完成验证',
+                        )}
+                      />
+                    </Col>
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
+                      <Form.Input
+                        field='ResendApiKey'
+                        label={t('Resend API Key')}
+                        type='password'
+                        disabled={smtpActive}
+                        placeholder={t('留空表示不修改')}
+                        extraText={
+                          resendKeyConfigured
+                            ? t('已配置 API Key')
+                            : t('尚未配置 API Key')
+                        }
+                      />
+                    </Col>
+                  </Row>
+                  <Button onClick={submitEmailSettings}>
+                    {t('保存邮件设置')}
+                  </Button>
                 </Form.Section>
               </Card>
               <Card>
