@@ -479,6 +479,7 @@ const EditChannelModal = (props) => {
     executeVerification,
     cancelVerification,
     setVerificationCode,
+    setVerificationPassword,
     switchVerificationMethod,
   } = useSecureVerification({
     onSuccess: (result) => {
@@ -3976,6 +3977,7 @@ const EditChannelModal = (props) => {
         onVerify={executeVerification}
         onCancel={cancelVerification}
         onCodeChange={setVerificationCode}
+        onPasswordChange={setVerificationPassword}
         onMethodSwitch={switchVerificationMethod}
         title={verificationState.title}
         description={verificationState.description}

@@ -4402,6 +4402,19 @@
     "预发布": "Pre-release",
     "当前处于离线状态，恢复网络后会自动检查更新。": "You are offline. Updates will be checked when you reconnect.",
     "显示的是上次成功检查到的发行版。": "Showing the last successfully checked release.",
-    "该发行版没有说明内容。": "No release notes provided."
+    "该发行版没有说明内容。": "No release notes provided.",
+    "您需要先启用两步验证、Passkey 或配置其他可用的安全验证方式": "Enable two-factor authentication or a Passkey first, or configure another available verification method",
+    "该验证方式当前不可用": "This verification method is currently unavailable",
+    "已绑定账号": "Linked account",
+    "当前没有可用于该操作的验证方式。": "No verification method is available for this operation.",
+    "请输入账号密码": "Enter your password",
+    "输入当前账号的登录密码以确认身份": "Enter this account's sign-in password to confirm your identity",
+    "使用已绑定到本账号的第三方身份完成验证": "Verify with a third-party account linked to this profile",
+    "使用 {{name}} 验证": "Verify with {{name}}",
+    "将在新窗口中完成授权，请勿拦截浏览器弹窗。": "Authorization opens in a new window. Please allow browser pop-ups.",
+    "OAuth 授权窗口已关闭，请重新发起验证。": "The OAuth window was closed. Start verification again.",
+    "OAuth 授权超时，请返回原窗口重试。": "OAuth authorization timed out. Return to the original window and try again.",
+    "验证完成，可以关闭本窗口。": "Verification complete. You can close this window.",
+    "已完成授权，正在返回原窗口…": "Authorization complete. Returning to the original window..."
   }
 }

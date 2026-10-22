@@ -43,6 +43,7 @@ const ChannelKeyViewExample = ({ channelId }) => {
     executeVerification,
     cancelVerification,
     setVerificationCode,
+    setVerificationPassword,
     switchVerificationMethod,
   } = useSecureVerification({
     onSuccess: (result) => {
@@ -81,6 +82,7 @@ const ChannelKeyViewExample = ({ channelId }) => {
         onVerify={executeVerification}
         onCancel={cancelVerification}
         onCodeChange={setVerificationCode}
+        onPasswordChange={setVerificationPassword}
         onMethodSwitch={switchVerificationMethod}
         title={verificationState.title}
         description={verificationState.description}

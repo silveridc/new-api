@@ -17,7 +17,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Banner,
@@ -30,7 +36,12 @@ import {
   Typography,
 } from '@douyinfe/semi-ui';
 import { IconCopy, IconPlus, IconRefresh } from '@douyinfe/semi-icons';
-import { API, showError, showSuccess, timestamp2string } from '../../../../helpers';
+import {
+  API,
+  showError,
+  showSuccess,
+  timestamp2string,
+} from '../../../../helpers';
 import { useSecureVerification } from '../../../../hooks/common/useSecureVerification';
 import { createApiCalls } from '../../../../services/secureVerification';
 import SecureVerificationModal from '../../../common/modals/SecureVerificationModal';
@@ -57,7 +68,11 @@ const AccessTokensCard = ({ t: tProp }) => {
   const [catalog, setCatalog] = useState(null);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [dialog, setDialog] = useState({ visible: false, mode: 'create', token: null });
+  const [dialog, setDialog] = useState({
+    visible: false,
+    mode: 'create',
+    token: null,
+  });
   const [issuedToken, setIssuedToken] = useState(null);
 
   // 每个操作的成功回调不同，用 ref 承接当前操作的结果
@@ -70,6 +85,7 @@ const AccessTokensCard = ({ t: tProp }) => {
     executeVerification,
     cancelVerification,
     setVerificationCode,
+    setVerificationPassword,
     switchVerificationMethod,
   } = useSecureVerification({
     onSuccess: (result) => {
@@ -78,6 +94,14 @@ const AccessTokensCard = ({ t: tProp }) => {
       if (handler) handler(result);
     },
   });
+
+  // 用户取消验证不会走 onSuccess，提交态只能在这里落地，
+  // 否则创建对话框的确认按钮会一直转圈，卡片上的按钮也停在禁用态。
+  const cancelSecureVerification = useCallback(() => {
+    successHandlerRef.current = null;
+    setSubmitting(false);
+    cancelVerification();
+  }, [cancelVerification]);
 
   const loadTokens = useCallback(async () => {
     setLoading(true);
@@ -378,7 +402,9 @@ const AccessTokensCard = ({ t: tProp }) => {
           <Button
             size='small'
             icon={<IconPlus />}
-            onClick={() => setDialog({ visible: true, mode: 'create', token: null })}
+            onClick={() =>
+              setDialog({ visible: true, mode: 'create', token: null })
+            }
           >
             {t('创建令牌')}
           </Button>
@@ -386,7 +412,11 @@ const AccessTokensCard = ({ t: tProp }) => {
         </div>
       }
     >
-      <Text type='tertiary' size='small' style={{ display: 'block', marginBottom: 12 }}>
+      <Text
+        type='tertiary'
+        size='small'
+        style={{ display: 'block', marginBottom: 12 }}
+      >
         {t('访问令牌用于脚本或第三方工具调用本接口，权限按需最小化授予。')}
       </Text>
 
@@ -434,7 +464,9 @@ const AccessTokensCard = ({ t: tProp }) => {
         token={dialog.token}
         catalog={catalog}
         submitting={submitting}
-        onCancel={() => setDialog({ visible: false, mode: 'create', token: null })}
+        onCancel={() =>
+          setDialog({ visible: false, mode: 'create', token: null })
+        }
         onSubmit={dialog.mode === 'edit' ? handleEdit : handleCreate}
       />
 
@@ -482,8 +514,9 @@ const AccessTokensCard = ({ t: tProp }) => {
         verificationMethods={verificationMethods}
         verificationState={verificationState}
         onVerify={executeVerification}
-        onCancel={cancelVerification}
+        onCancel={cancelSecureVerification}
         onCodeChange={setVerificationCode}
+        onPasswordChange={setVerificationPassword}
         onMethodSwitch={switchVerificationMethod}
         title={verificationState.title}
         description={verificationState.description}

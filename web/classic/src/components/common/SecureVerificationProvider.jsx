@@ -13,22 +13,43 @@ GNU Affero General Public License for more details.
 
 You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
 */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import SecureVerificationModal from './modals/SecureVerificationModal';
-import { SecureVerificationService } from '../../services/secureVerification';
+import {
+  SecureVerificationService,
+  pickDefaultVerificationMethod,
+} from '../../services/secureVerification';
 import {
   registerRequestVerificationHandler,
   unregisterRequestVerificationHandler,
 } from '../../helpers/secureApiCall';
-import { showError } from '../../helpers';
+import { showError, showWarning } from '../../helpers';
 
 const IDLE_STATE = {
   visible: false,
   title: '',
   description: '',
+};
+
+const IDLE_METHODS = {
+  methods: [],
+  availableMethods: [],
+  oauthProviders: [],
+  passkeySupported: false,
+  passwordEncryptionEnabled: false,
+};
+
+const IDLE_INPUT = {
+  method: null,
+  loading: false,
+  code: '',
+  password: '',
+  provider: '',
 };
 
 /**
@@ -40,45 +61,64 @@ const SecureVerificationProvider = ({ children }) => {
   const { t } = useTranslation();
   const pendingRef = useRef(null);
   const [modalState, setModalState] = useState(IDLE_STATE);
-  const [verificationMethods, setVerificationMethods] = useState({
-    has2FA: false,
-    hasPasskey: false,
-    passkeySupported: false,
-  });
-  const [verificationState, setVerificationState] = useState({
-    method: null,
-    loading: false,
-    code: '',
-  });
+  const [verificationMethods, setVerificationMethods] = useState(IDLE_METHODS);
+  const [verificationState, setVerificationState] = useState(IDLE_INPUT);
 
   const settle = useCallback((proof) => {
     const pending = pendingRef.current;
     pendingRef.current = null;
     setModalState(IDLE_STATE);
-    setVerificationState({ method: null, loading: false, code: '' });
+    setVerificationState(IDLE_INPUT);
     pending?.resolve(proof);
   }, []);
 
-  const handleVerify = useCallback(async () => {
-    const pending = pendingRef.current;
-    if (!pending || verificationState.loading) return;
-    setVerificationState((previous) => ({ ...previous, loading: true }));
-    try {
-      const proof = await SecureVerificationService.verify(
-        verificationState.method,
-        verificationState.code,
-        { scope: pending.scope, context: pending.context },
-      );
-      settle(proof);
-    } catch (error) {
-      showError(error.message || t('验证失败，请重试'));
+  const handleVerify = useCallback(
+    async (overrides = {}) => {
+      const pending = pendingRef.current;
+      if (!pending || verificationState.loading) return;
+      const provider =
+        overrides.provider ||
+        verificationState.provider ||
+        verificationMethods.oauthProviders[0]?.slug ||
+        '';
       setVerificationState((previous) => ({
         ...previous,
-        loading: false,
-        code: '',
+        loading: true,
+        provider,
       }));
-    }
-  }, [settle, t, verificationState.code, verificationState.loading, verificationState.method]);
+      try {
+        const proof = await SecureVerificationService.verify(
+          verificationState.method,
+          {
+            code: verificationState.code,
+            password: verificationState.password,
+            provider,
+          },
+          { scope: pending.scope, context: pending.context },
+          verificationMethods,
+        );
+        settle(proof);
+      } catch (error) {
+        showError(error.message || t('验证失败，请重试'));
+        setVerificationState((previous) => ({
+          ...previous,
+          loading: false,
+          code: '',
+          password: '',
+        }));
+      }
+    },
+    [
+      settle,
+      t,
+      verificationMethods,
+      verificationState.code,
+      verificationState.loading,
+      verificationState.method,
+      verificationState.password,
+      verificationState.provider,
+    ],
+  );
 
   const handleCancel = useCallback(() => {
     if (verificationState.loading) return;
@@ -86,11 +126,21 @@ const SecureVerificationProvider = ({ children }) => {
   }, [settle, verificationState.loading]);
 
   const handleMethodSwitch = useCallback((method) => {
-    setVerificationState((previous) => ({ ...previous, method, code: '' }));
+    setVerificationState((previous) => ({
+      ...previous,
+      method,
+      code: '',
+      password: '',
+      provider: '',
+    }));
   }, []);
 
   const handleCodeChange = useCallback((code) => {
     setVerificationState((previous) => ({ ...previous, code }));
+  }, []);
+
+  const handlePasswordChange = useCallback((password) => {
+    setVerificationState((previous) => ({ ...previous, password }));
   }, []);
 
   const handleRequestVerification = useCallback(
@@ -108,26 +158,26 @@ const SecureVerificationProvider = ({ children }) => {
               await SecureVerificationService.checkAvailableVerificationMethods(
                 options.scope,
               );
-            if (!methods.has2FA && !methods.hasPasskey) {
-              showError(t('您需要先启用两步验证或 Passkey 才能执行此操作'));
+            if (!methods.methods.length) {
+              showError(
+                t('您需要先启用两步验证、Passkey 或配置其他可用的安全验证方式'),
+              );
               settle(null);
               return;
             }
-            let method = options.preferredMethod;
-            if (
-              method === 'passkey' &&
-              (!methods.hasPasskey || !methods.passkeySupported)
-            ) {
-              method = methods.has2FA ? '2fa' : null;
-            }
-            if (!method) {
-              method =
-                methods.hasPasskey && methods.passkeySupported
-                  ? 'passkey'
-                  : '2fa';
+            const method = pickDefaultVerificationMethod(
+              methods,
+              options.preferredMethod,
+            );
+            if (options.preferredMethod && method !== options.preferredMethod) {
+              const reason =
+                methods.methods.find(
+                  (option) => option.method === options.preferredMethod,
+                )?.reason || t('该验证方式当前不可用');
+              showWarning(reason);
             }
             setVerificationMethods(methods);
-            setVerificationState({ method, loading: false, code: '' });
+            setVerificationState({ ...IDLE_INPUT, method });
             setModalState({
               visible: true,
               title: options.title,
@@ -161,6 +211,7 @@ const SecureVerificationProvider = ({ children }) => {
         onVerify={handleVerify}
         onCancel={handleCancel}
         onCodeChange={handleCodeChange}
+        onPasswordChange={handlePasswordChange}
         onMethodSwitch={handleMethodSwitch}
         title={modalState.title}
         description={modalState.description}

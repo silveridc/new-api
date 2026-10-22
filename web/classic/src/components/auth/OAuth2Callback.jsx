@@ -20,7 +20,7 @@ For commercial licensing, please contact support@quantumnous.com
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Modal } from '@douyinfe/semi-ui';
+import { Modal, Typography } from '@douyinfe/semi-ui';
 import { API, showError, showSuccess, setUserData } from '../../helpers';
 import { UserContext } from '../../context/User';
 import {
@@ -28,6 +28,11 @@ import {
   getAuthUser,
   storeUserProfile,
 } from '../../helpers/authSession';
+import {
+  getOAuthSessionStorage,
+  resolveOAuthCallbackMode,
+  handOAuthCallbackToOpener,
+} from '../../helpers/oauthPopup';
 import Loading from '../common/ui/Loading';
 import TwoFAVerification from './TwoFAVerification';
 
@@ -42,6 +47,10 @@ const OAuth2Callback = (props) => {
 
   // 账号启用两步验证/Passkey 时，OAuth 登录先返回验证挑战
   const [loginChallenge, setLoginChallenge] = useState(null);
+
+  // 安全验证弹窗模式：handing=已交回原窗口，done=原窗口确认成功，failed=失败
+  const [popupPhase, setPopupPhase] = useState(null);
+  const [popupMessage, setPopupMessage] = useState('');
 
   // 最大重试次数
   const MAX_RETRIES = 3;
@@ -100,14 +109,45 @@ const OAuth2Callback = (props) => {
   };
 
   useEffect(() => {
+    const code = searchParams.get('code');
+    const state = searchParams.get('state');
+    const mode = resolveOAuthCallbackMode(
+      props.type,
+      state,
+      window.opener,
+      getOAuthSessionStorage(window),
+    );
+
+    // 安全验证弹窗：本页面只负责把授权结果交回发起窗口，proof 由发起窗口
+    // 带着自己的登录态去换取，避免这里把会话当成新登录覆盖掉。
+    if (mode === 'verify') {
+      setPopupPhase('handing');
+      return handOAuthCallbackToOpener({
+        provider: props.type,
+        intent: 'verify',
+        state,
+        code,
+        error: searchParams.get('error'),
+        errorDescription: searchParams.get('error_description'),
+        onSuccess: () => setPopupPhase('done'),
+        onFailure: (message) => {
+          setPopupPhase('failed');
+          setPopupMessage(
+            message || t('OAuth 授权窗口已关闭，请重新发起验证。'),
+          );
+        },
+        onTimeout: () => {
+          setPopupPhase('failed');
+          setPopupMessage(t('OAuth 授权超时，请返回原窗口重试。'));
+        },
+      });
+    }
+
     // 防止 React 18 Strict Mode 下重复执行
     if (hasExecuted.current) {
       return;
     }
     hasExecuted.current = true;
-
-    const code = searchParams.get('code');
-    const state = searchParams.get('state');
 
     // 参数缺失直接返回
     if (!code) {
@@ -169,6 +209,25 @@ const OAuth2Callback = (props) => {
           flowToken={loginChallenge?.flow_token}
         />
       </Modal>
+    );
+  }
+
+  if (popupPhase) {
+    return (
+      <div className='flex min-h-screen items-center justify-center p-6'>
+        <div className='max-w-md space-y-3 text-center'>
+          <Typography.Title heading={4}>{t('安全验证')}</Typography.Title>
+          <Typography.Text
+            type={popupPhase === 'failed' ? 'danger' : 'tertiary'}
+          >
+            {popupPhase === 'failed'
+              ? popupMessage
+              : popupPhase === 'done'
+                ? t('验证完成，可以关闭本窗口。')
+                : t('已完成授权，正在返回原窗口…')}
+          </Typography.Text>
+        </div>
+      </div>
     );
   }
 

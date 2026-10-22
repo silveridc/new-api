@@ -108,6 +108,7 @@ const PersonalSetting = () => {
     executeVerification: executePasskeyVerification,
     cancelVerification: cancelPasskeyVerification,
     setVerificationCode: setPasskeyVerificationCode,
+    setVerificationPassword: setPasskeyVerificationPassword,
     switchVerificationMethod: switchPasskeyVerificationMethod,
     checkVerificationMethods: checkPasskeyVerificationMethods,
   } = useSecureVerification({
@@ -116,15 +117,13 @@ const PersonalSetting = () => {
     },
   });
 
+  // Passkey 的注册/删除要求用「另一种」方式验证，这里只保留选中的那一个页签。
   const visiblePasskeyVerificationMethods = passkeyRequiredVerificationMethod
     ? {
         ...passkeyVerificationMethods,
-        has2FA:
-          passkeyRequiredVerificationMethod === '2fa' &&
-          passkeyVerificationMethods.has2FA,
-        hasPasskey:
-          passkeyRequiredVerificationMethod === 'passkey' &&
-          passkeyVerificationMethods.hasPasskey,
+        methods: (passkeyVerificationMethods.methods || []).filter(
+          (option) => option.method === passkeyRequiredVerificationMethod,
+        ),
       }
     : passkeyVerificationMethods;
 
@@ -276,10 +275,14 @@ const PersonalSetting = () => {
   const registerPasskey = async (proofToken) => {
     setPasskeyRegisterLoading(true);
     try {
-      const beginRes = await API.post('/api/user/passkey/register/begin', undefined, {
-        headers: { 'X-Security-Proof': proofToken },
-        singleUseAuthorization: true,
-      });
+      const beginRes = await API.post(
+        '/api/user/passkey/register/begin',
+        undefined,
+        {
+          headers: { 'X-Security-Proof': proofToken },
+          singleUseAuthorization: true,
+        },
+      );
       const { success, message, data } = beginRes.data;
       if (!success) {
         throw new Error(message || t('无法发起 Passkey 注册'));
@@ -351,7 +354,9 @@ const PersonalSetting = () => {
   };
 
   const handleRemovePasskey = async () => {
-    await startPasskeyManagementVerification(removePasskey, { scope: 'passkey.delete' });
+    await startPasskeyManagementVerification(removePasskey, {
+      scope: 'passkey.delete',
+    });
   };
 
   const handlePasskeyVerificationCancel = () => {
@@ -388,7 +393,9 @@ const PersonalSetting = () => {
 
     if (success) {
       showSuccess(t('账户已删除！'));
-      await API.post('/api/user/auth/logout', undefined, { skipAuthRefresh: true });
+      await API.post('/api/user/auth/logout', undefined, {
+        skipAuthRefresh: true,
+      });
       userDispatch({ type: 'logout' });
       localStorage.removeItem('user');
       navigate('/login');
@@ -597,7 +604,9 @@ const PersonalSetting = () => {
               <NotificationSettings
                 t={t}
                 notificationSettings={notificationSettings}
-                handleNotificationSettingChange={handleNotificationSettingChange}
+                handleNotificationSettingChange={
+                  handleNotificationSettingChange
+                }
                 saveNotificationSettings={saveNotificationSettings}
               />
               {/* 登录会话管理 */}
@@ -671,6 +680,7 @@ const PersonalSetting = () => {
         onVerify={executePasskeyVerification}
         onCancel={handlePasskeyVerificationCancel}
         onCodeChange={setPasskeyVerificationCode}
+        onPasswordChange={setPasskeyVerificationPassword}
         onMethodSwitch={switchPasskeyVerificationMethod}
         title={passkeyVerificationState.title}
         description={passkeyVerificationState.description}
