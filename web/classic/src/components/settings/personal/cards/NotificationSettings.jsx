@@ -59,6 +59,10 @@ const NotificationSettings = ({
   const [statusState] = useContext(StatusContext);
   const [userState] = useContext(UserContext);
   const isAdminOrRoot = (userState?.user?.role || 0) >= 10;
+  const isRootUser = (userState?.user?.role || 0) >= 100;
+  // 站点级预警总开关关掉时，个人这边怎么设都不会发通知，就不给这个选项。
+  const quotaRemindEnabled =
+    statusState?.status?.quota_remind_enabled !== false;
 
   // 左侧边栏设置相关状态
   const [sidebarLoading, setSidebarLoading] = useState(false);
@@ -217,12 +221,29 @@ const NotificationSettings = ({
     loadSidebarConfigs();
   }, [statusState]);
 
-  // 初始化表单值
+  // 这两个开关在后端是三态（relaykit/dto/user_settings.go 的 *bool + omitempty：
+  // nil = 用户从没选过，由服务端按角色给默认值）。表单要显示的是「当前生效值」，
+  // 而 state 保持 undefined 才能在保存时整个键省略、不把默认值写死，
+  // 所以只在送进 Form 的这一刻补默认（省略逻辑见 PersonalSetting.saveNotificationSettings）。
+  const quotaWarningEnabled = notificationSettings.quotaWarningEnabled ?? true;
+  const channelNotifyEnabled =
+    notificationSettings.channelNotifyEnabled ?? isRootUser;
+  const formValues = {
+    ...notificationSettings,
+    quotaWarningEnabled,
+    channelNotifyEnabled,
+  };
+  // 站点关了预警时根本没有这个开关，阈值仍要照常显示（保持既有行为）。
+  const showWarningThreshold = !quotaRemindEnabled || quotaWarningEnabled;
+
+  // 初始化表单值。role 要等 UserContext 异步填充，首帧算出的两个默认值可能是错的，
+  // 而用户从没选过时 notificationSettings 的引用也不会变，所以默认值本身也要当依赖，
+  // 否则 root 的「渠道通知」会一直显示成首帧的 false。
   useEffect(() => {
     if (formApiRef.current && notificationSettings) {
-      formApiRef.current.setValues(notificationSettings);
+      formApiRef.current.setValues(formValues);
     }
-  }, [notificationSettings]);
+  }, [notificationSettings, quotaWarningEnabled, channelNotifyEnabled]);
 
   // 处理表单字段变化
   const handleFormChange = (field, value) => {
@@ -401,7 +422,7 @@ const NotificationSettings = ({
 
       <Form
         getFormApi={(api) => (formApiRef.current = api)}
-        initValues={notificationSettings}
+        initValues={formValues}
         onSubmit={handleSubmit}
       >
         {() => (
@@ -434,42 +455,74 @@ const NotificationSettings = ({
                   <Radio value='gotify'>{t('Gotify通知')}</Radio>
                 </Form.RadioGroup>
 
-                <Form.AutoComplete
-                  field='warningThreshold'
-                  label={
-                    <span>
-                      {t('额度预警阈值')}{' '}
-                      {renderQuotaWithPrompt(
-                        notificationSettings.warningThreshold,
-                      )}
-                    </span>
-                  }
-                  placeholder={t('请输入预警额度')}
-                  data={[
-                    { value: 100000, label: '0.2$' },
-                    { value: 500000, label: '1$' },
-                    { value: 1000000, label: '2$' },
-                    { value: 5000000, label: '10$' },
-                  ]}
-                  onChange={(val) => handleFormChange('warningThreshold', val)}
-                  prefix={<IconBell />}
-                  extraText={t(
-                    '当钱包或订阅剩余额度低于此数值时，系统将通过选择的方式发送通知',
-                  )}
-                  style={{ width: '100%', maxWidth: '300px' }}
-                  rules={[
-                    { required: true, message: t('请输入预警阈值') },
-                    {
-                      validator: (rule, value) => {
-                        const numValue = Number(value);
-                        if (isNaN(numValue) || numValue <= 0) {
-                          return Promise.reject(t('预警阈值必须为正数'));
-                        }
-                        return Promise.resolve();
+                {quotaRemindEnabled && (
+                  <Form.Switch
+                    field='quotaWarningEnabled'
+                    label={t('余额不足提醒')}
+                    checkedText={t('开')}
+                    uncheckedText={t('关')}
+                    onChange={(value) =>
+                      handleFormChange('quotaWarningEnabled', value)
+                    }
+                    extraText={t('余额低于下方阈值时，通过所选方式提醒你一次')}
+                  />
+                )}
+
+                {showWarningThreshold && (
+                  <Form.AutoComplete
+                    field='warningThreshold'
+                    label={
+                      <span>
+                        {t('额度预警阈值')}{' '}
+                        {renderQuotaWithPrompt(
+                          notificationSettings.warningThreshold,
+                        )}
+                      </span>
+                    }
+                    placeholder={t('请输入预警额度')}
+                    data={[
+                      { value: 100000, label: '0.2$' },
+                      { value: 500000, label: '1$' },
+                      { value: 1000000, label: '2$' },
+                      { value: 5000000, label: '10$' },
+                    ]}
+                    onChange={(val) =>
+                      handleFormChange('warningThreshold', val)
+                    }
+                    prefix={<IconBell />}
+                    extraText={t(
+                      '当钱包或订阅剩余额度低于此数值时，系统将通过选择的方式发送通知',
+                    )}
+                    style={{ width: '100%', maxWidth: '300px' }}
+                    rules={[
+                      { required: true, message: t('请输入预警阈值') },
+                      {
+                        validator: (rule, value) => {
+                          const numValue = Number(value);
+                          if (isNaN(numValue) || numValue <= 0) {
+                            return Promise.reject(t('预警阈值必须为正数'));
+                          }
+                          return Promise.resolve();
+                        },
                       },
-                    },
-                  ]}
-                />
+                    ]}
+                  />
+                )}
+
+                {isAdminOrRoot && (
+                  <Form.Switch
+                    field='channelNotifyEnabled'
+                    label={t('渠道通知')}
+                    checkedText={t('开')}
+                    uncheckedText={t('关')}
+                    onChange={(value) =>
+                      handleFormChange('channelNotifyEnabled', value)
+                    }
+                    extraText={t(
+                      '渠道被自动禁用或重新启用，或全部渠道测试完成时，通过所选方式通知你；仅管理员可用。',
+                    )}
+                  />
+                )}
 
                 {isAdminOrRoot && (
                   <Form.Switch

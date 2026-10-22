@@ -96,6 +96,10 @@ const PersonalSetting = () => {
     gotifyToken: '',
     gotifyPriority: 5,
     upstreamModelUpdateNotifyEnabled: false,
+    // 后端是 *bool：undefined 表示「用户从没选过」，保存时要整个键省略，
+    // 让服务端继续按角色给默认值（额度预警默认开、渠道通知默认只给 Root）。
+    quotaWarningEnabled: undefined,
+    channelNotifyEnabled: undefined,
     acceptUnsetModelRatioModel: false,
     recordIpLog: false,
   });
@@ -197,6 +201,9 @@ const PersonalSetting = () => {
           settings.gotify_priority !== undefined ? settings.gotify_priority : 5,
         upstreamModelUpdateNotifyEnabled:
           settings.upstream_model_update_notify_enabled === true,
+        // 有意不做 `|| false`：键不存在时要保持 undefined
+        quotaWarningEnabled: settings.quota_warning_enabled,
+        channelNotifyEnabled: settings.channel_notify_enabled,
         acceptUnsetModelRatioModel:
           settings.accept_unset_model_ratio_model || false,
         recordIpLog: settings.record_ip_log || false,
@@ -520,6 +527,18 @@ const PersonalSetting = () => {
 
   const saveNotificationSettings = async () => {
     try {
+      // 两个 *bool 开关：用户没动过就整个键不发（后端 `PUT /api/user/setting`
+      // 对缺省键是保留原值，见 controller/user.go），发了才覆盖默认。
+      const defaultedSwitches = {
+        ...(notificationSettings.quotaWarningEnabled !== undefined
+          ? { quota_warning_enabled: notificationSettings.quotaWarningEnabled }
+          : {}),
+        ...(notificationSettings.channelNotifyEnabled !== undefined
+          ? {
+              channel_notify_enabled: notificationSettings.channelNotifyEnabled,
+            }
+          : {}),
+      };
       const res = await API.put('/api/user/setting', {
         notify_type: notificationSettings.warningType,
         quota_warning_threshold: parseFloat(
@@ -540,6 +559,7 @@ const PersonalSetting = () => {
         accept_unset_model_ratio_model:
           notificationSettings.acceptUnsetModelRatioModel,
         record_ip_log: notificationSettings.recordIpLog,
+        ...defaultedSwitches,
       });
 
       if (res.data.success) {
