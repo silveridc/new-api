@@ -21,7 +21,13 @@ import React, { useContext, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Modal, Typography } from '@douyinfe/semi-ui';
-import { API, showError, showSuccess, setUserData } from '../../helpers';
+import {
+  API,
+  getServerMessage,
+  showError,
+  showSuccess,
+  setUserData,
+} from '../../helpers';
 import { UserContext } from '../../context/User';
 import {
   applyAuthBundle,
@@ -61,11 +67,15 @@ const OAuth2Callback = (props) => {
         `/api/oauth/${props.type}?code=${code}&state=${state}`,
       );
 
-      const { success, message, data } = resData;
+      const { success, data } = resData;
 
       if (!success) {
-        // 业务错误不重试，直接显示错误
-        showError(message || t('授权失败'));
+        // 业务错误不重试，直接显示错误。必须传整个响应体给 getServerMessage，
+        // 后端下发的 message_key 是带 {{provider}} 占位符的英文原文，
+        // 只有配上 message_params 才能翻成完整的中文。
+        showError(
+          getServerMessage(resData) || resData.message || t('授权失败'),
+        );
         return;
       }
 
@@ -102,7 +112,10 @@ const OAuth2Callback = (props) => {
 
       // 重试次数耗尽，提示错误并返回设置页面
       showError(
-        error?.response?.data?.message || error.message || t('授权失败'),
+        getServerMessage(error) ||
+          error?.response?.data?.message ||
+          error.message ||
+          t('授权失败'),
       );
       navigate('/console/personal');
     }

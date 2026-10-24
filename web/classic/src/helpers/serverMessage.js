@@ -429,6 +429,15 @@ const SERVER_MESSAGE_TRANSLATIONS = {
   "{{name}} called {{count}} times, cost {{quota}}": "{{name}} 调用 {{count}} 次，调用花费 {{quota}}",
   "{{provider}} login and registration has not been enabled by administrator": "管理员未开启通过 {{provider}} 登录以及注册",
   "{{provider}} top-up succeeded, amount added: {{quota}}, payment amount: {{amount}}": "{{provider}} 充值成功，充值额度: {{quota}}，支付金额: {{amount}}",
+  // oauth/types.go 的 7 条授权登录错误文案：后端下发 message_key + message_params，
+  // 缺 provider/field 时中文会露出占位符，所以必须成对补齐。
+  "Invalid authorization code": "授权码无效",
+  "Failed to get token from {{provider}}, please check settings": "从 {{provider}} 获取令牌失败，请检查系统设置",
+  "{{provider}} returned empty user info, please check settings": "{{provider}} 返回的用户信息为空，请检查系统设置",
+  "Unable to connect to {{provider}} server, please try again later": "无法连接 {{provider}} 服务器，请稍后重试",
+  "Failed to get user information": "获取用户信息失败",
+  "{{provider}} settings are incomplete, please fill in {{field}} in system settings first": "{{provider}} 配置不完整，请先在系统设置中填写 {{field}}",
+  "Server Address must be a valid http(s) URL for {{provider}} to build the sign-in callback address": "{{provider}} 需要有效的服务器地址（http/https）才能构造登录回调地址",
 };
 
 // 稳定错误码 → 中文（后端 securityProofError 等只带 code 不带 message_key 的响应）

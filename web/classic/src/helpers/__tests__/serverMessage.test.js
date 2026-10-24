@@ -17,6 +17,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import i18next from 'i18next';
 
@@ -245,5 +247,48 @@ describe('showError status handling', () => {
     );
 
     expect(toastError).toHaveBeenCalledWith('错误：两步验证已暂时锁定。');
+  });
+});
+
+describe('server message translation for OAuth sign-in errors', () => {
+  const originalLanguage = i18next.language;
+
+  beforeEach(() => {
+    i18next.language = 'zh';
+  });
+
+  afterEach(() => {
+    i18next.language = originalLanguage;
+  });
+
+  // 上游随时会加新的 OAuth 文案，这里按后端常量源逐条比对，漏一条就红。
+  it('covers every message key declared by the OAuth backend', () => {
+    const source = readFileSync(
+      resolve(process.cwd(), '../../oauth/types.go'),
+      'utf8',
+    );
+    const keys = [...source.matchAll(/^\tmsg\w+\s+=\s+"([^"]*)"$/gm)].map(
+      (match) => match[1],
+    );
+    expect(keys.length).toBeGreaterThan(0);
+    for (const key of keys) {
+      expect(
+        translateServerText(key),
+        `classic is missing a translation for: ${key}`,
+      ).not.toBe(key);
+    }
+  });
+
+  it('fills the provider and field params of the OIDC config error', () => {
+    expect(
+      getServerMessage({
+        success: false,
+        message:
+          'OIDC settings are incomplete, please fill in oidc.token_endpoint in system settings first',
+        message_key:
+          '{{provider}} settings are incomplete, please fill in {{field}} in system settings first',
+        message_params: { provider: 'OIDC', field: 'oidc.token_endpoint' },
+      }),
+    ).toBe('OIDC 配置不完整，请先在系统设置中填写 oidc.token_endpoint');
   });
 });
