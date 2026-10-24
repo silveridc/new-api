@@ -3833,6 +3833,21 @@
     "Resend API Key": "Clé API Resend",
     "留空表示不修改": "Laisser vide pour ne rien modifier",
     "已配置 API Key": "Clé API configurée",
-    "尚未配置 API Key": "Aucune clé API configurée"
+    "尚未配置 API Key": "Aucune clé API configurée",
+    "备用码必须是8位": "Le code de secours doit comporter 8 caractères",
+    "验证码必须是6位数字": "Le code de vérification doit comporter 6 chiffres",
+    "登录响应无效": "Réponse de connexion invalide",
+    "登录成功": "Connexion réussie",
+    "请输入认证器应用显示的验证码完成登录": "Saisissez le code affiché par votre application d’authentification pour terminer la connexion",
+    "备用码": "Code de secours",
+    "请输入8位备用码": "Saisissez le code de secours à 8 caractères",
+    "请输入6位验证码": "Saisissez le code de vérification à 6 chiffres",
+    "验证并登录": "Vérifier et se connecter",
+    "使用认证器验证码": "Utiliser le code d’authentification",
+    "使用备用码": "Utiliser un code de secours",
+    "提示：": "Astuce :",
+    "• 验证码每30秒更新一次": "• Le code se renouvelle toutes les 30 secondes",
+    "• 如果无法获取验证码，请使用备用码": "• Si vous n’obtenez pas de code, utilisez un code de secours",
+    "• 每个备用码只能使用一次": "• Chaque code de secours n’est utilisable qu’une fois"
   }
 }

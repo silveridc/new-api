@@ -47,8 +47,9 @@ const TwoFAVerification = ({
       showError(t('请输入验证码'));
       return;
     }
-    // Validate code format
-    if (useBackupCode && verificationCode.length !== 8) {
+    // 备用码线上格式为 XXXX-XXXX，去掉分隔符后是 8 位；后端两种写法都接受
+    const backupCode = verificationCode.replace(/[\s-]/g, '');
+    if (useBackupCode && !/^[A-Z0-9]{8}$/i.test(backupCode)) {
       showError(t('备用码必须是8位'));
       return;
     } else if (!useBackupCode && !/^\d{6}$/.test(verificationCode)) {
@@ -61,7 +62,7 @@ const TwoFAVerification = ({
       const res = await API.post('/api/user/login/verify', {
         flow_token: flowToken,
         method: '2fa',
-        code: verificationCode,
+        code: useBackupCode ? backupCode : verificationCode,
       });
 
       if (res.data.success) {
@@ -74,7 +75,7 @@ const TwoFAVerification = ({
         showError(res.data.message);
       }
     } catch (error) {
-      showError(t('验证失败，请重试'));
+      showError(error?.response?.data?.message || t('验证失败，请重试'));
     } finally {
       setLoading(false);
     }

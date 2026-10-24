@@ -224,7 +224,7 @@ const SecureVerificationModal = ({
                       value={code}
                       onChange={onCodeChange}
                       size='large'
-                      maxLength={8}
+                      maxLength={9}
                       onKeyDown={handleKeyDown}
                       autoFocus={method === '2fa'}
                       disabled={loading}

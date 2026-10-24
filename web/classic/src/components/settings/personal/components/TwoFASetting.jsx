@@ -16,7 +16,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { API, showError, showSuccess, showWarning } from '../../../../helpers';
+import {
+  API,
+  showError,
+  showSuccess,
+  showWarning,
+  requestVerification,
+} from '../../../../helpers';
+import { SecureVerificationService } from '../../../../services/secureVerification';
 import {
   Banner,
   Button,
@@ -80,11 +87,30 @@ const TwoFASetting = ({ t }) => {
     fetchStatus();
   }, []);
 
+  // proof 一次性使用：请求必须声明 singleUseAuthorization，
+  // api.js 拦截器会先刷新访问令牌且 401 后绝不重放。
+  const proofConfig = (proofToken) => ({
+    headers: { 'X-Security-Proof': proofToken },
+    singleUseAuthorization: true,
+  });
+
   // 初始化2FA设置
   const handleSetup2FA = async () => {
     setLoading(true);
     try {
-      const res = await API.post('/api/user/2fa/setup');
+      // 后端要求 setup 带一次性安全凭证，未启用 2FA 时一般用密码完成验证
+      const verification = await requestVerification({
+        scope: '2fa.setup',
+        title: t('安全验证'),
+      });
+      if (!verification?.proof_token) {
+        return;
+      }
+      const res = await API.post(
+        '/api/user/2fa/setup',
+        undefined,
+        proofConfig(verification.proof_token),
+      );
       if (res.data.success) {
         setSetupData(res.data.data);
         setSetupModalVisible(true);
@@ -93,7 +119,7 @@ const TwoFASetting = ({ t }) => {
         showError(res.data.message);
       }
     } catch (error) {
-      showError(t('设置2FA失败'));
+      showError(error?.response?.data?.message || t('设置2FA失败'));
     } finally {
       setLoading(false);
     }
@@ -108,21 +134,24 @@ const TwoFASetting = ({ t }) => {
 
     setLoading(true);
     try {
+      // flow_token 把这次启用绑定到上面那次 setup，缺失后端返回 TWOFA_SETUP_INVALID
       const res = await API.post('/api/user/2fa/enable', {
         code: verificationCode,
+        flow_token: setupData?.flow_token,
       });
       if (res.data.success) {
         showSuccess(t('两步验证启用成功！'));
         setEnableModalVisible(false);
         setSetupModalVisible(false);
         setVerificationCode('');
+        setSetupData(null);
         setCurrentStep(0);
         fetchStatus();
       } else {
         showError(res.data.message);
       }
     } catch (error) {
-      showError(t('启用2FA失败'));
+      showError(error?.response?.data?.message || t('启用2FA失败'));
     } finally {
       setLoading(false);
     }
@@ -142,9 +171,16 @@ const TwoFASetting = ({ t }) => {
 
     setLoading(true);
     try {
-      const res = await API.post('/api/user/2fa/disable', {
-        code: verificationCode,
-      });
+      // 禁用只接受 2fa 方式的安全凭证，密码方式会被后端拒绝
+      const verification = await SecureVerificationService.verify2FA(
+        verificationCode,
+        { scope: '2fa.disable' },
+      );
+      const res = await API.post(
+        '/api/user/2fa/disable',
+        {},
+        proofConfig(verification.proof_token),
+      );
       if (res.data.success) {
         showSuccess(t('两步验证已禁用'));
         setDisableModalVisible(false);
@@ -155,7 +191,7 @@ const TwoFASetting = ({ t }) => {
         showError(res.data.message);
       }
     } catch (error) {
-      showError(t('禁用2FA失败'));
+      showError(error?.message || t('禁用2FA失败'));
     } finally {
       setLoading(false);
     }
@@ -170,9 +206,15 @@ const TwoFASetting = ({ t }) => {
 
     setLoading(true);
     try {
-      const res = await API.post('/api/user/2fa/backup_codes', {
-        code: verificationCode,
-      });
+      const verification = await SecureVerificationService.verify2FA(
+        verificationCode,
+        { scope: '2fa.backup_codes.regenerate' },
+      );
+      const res = await API.post(
+        '/api/user/2fa/backup_codes',
+        {},
+        proofConfig(verification.proof_token),
+      );
       if (res.data.success) {
         setBackupCodes(res.data.data.backup_codes);
         showSuccess(t('备用码重新生成成功'));
@@ -182,7 +224,7 @@ const TwoFASetting = ({ t }) => {
         showError(res.data.message);
       }
     } catch (error) {
-      showError(t('重新生成备用码失败'));
+      showError(error?.message || t('重新生成备用码失败'));
     } finally {
       setLoading(false);
     }
