@@ -85,8 +85,8 @@ func oidcConfigurationError() error {
 			}))
 		}
 	}
-	redirect, err := url.Parse(oidcRedirectURI())
-	if err != nil || redirect.Host == "" || (redirect.Scheme != "https" && redirect.Scheme != "http") {
+	parsedURL, err := url.Parse(oidcRedirectURI())
+	if err != nil || parsedURL.Host == "" || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
 		return NewOAuthError(common.NewMessage(msgServerAddressInvalid, map[string]any{"provider": "OIDC"}))
 	}
 	return nil
@@ -217,7 +217,7 @@ func (p *OIDCProvider) GetUserInfo(ctx context.Context, token *OAuthToken) (*OAu
 		if oidcUser.Email == "" {
 			missing = append(missing, "email")
 		}
-		logger.LogError(ctx, common.LogText("[OAuth-OIDC] GetUserInfo failed: userinfo missing %v, granted scopes=%q", missing, token.Scope))
+		logger.LogError(ctx, common.LogText("[OAuth-OIDC] GetUserInfo failed: userinfo missing %s, granted scopes=%q", strings.Join(missing, ", "), token.Scope))
 		return nil, NewOAuthError(common.NewMessage(msgUserInfoEmpty, map[string]any{"provider": "OIDC"}))
 	}
 

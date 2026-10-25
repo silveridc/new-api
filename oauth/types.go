@@ -34,7 +34,7 @@ const (
 	msgUserInfoEmpty = "{{provider}} returned empty user info, please check settings"
 	msgConnectFailed = "Unable to connect to {{provider}} server, please try again later"
 	msgGetUserFailed = "Failed to get user information"
-	// 配置缺失时点名缺哪一项，否则管理员只会看到"请检查设置"这种无法定位的提示。
+	// 下面两条是 fork 新增：点名缺哪一项配置，否则管理员只会看到「请检查设置」。
 	msgProviderConfigMissing = "{{provider}} settings are incomplete, please fill in {{field}} in system settings first"
 	msgServerAddressInvalid  = "Server Address must be a valid http(s) URL for {{provider}} to build the sign-in callback address"
 )
