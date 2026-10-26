@@ -2364,6 +2364,106 @@ export function ChannelMutateDrawer({
               )}
             />
           </div>
+          {formValues.quota_daily_reset_mode === 'fixed' && (
+            <div className='grid gap-4 sm:grid-cols-2'>
+              <FormField
+                control={form.control}
+                name='quota_daily_reset_hour'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Daily reset hour (0-23)')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        min={0}
+                        max={23}
+                        {...field}
+                        value={field.value ?? 0}
+                        onChange={(e) => field.onChange(Number(e.target.value))}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+          )}
+          {formValues.quota_weekly_reset_mode === 'fixed' && (
+            <div className='grid gap-4 sm:grid-cols-2'>
+              <FormField
+                control={form.control}
+                name='quota_weekly_reset_day'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Weekly reset day (0-6, 0=Sunday)')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        min={0}
+                        max={6}
+                        {...field}
+                        value={field.value ?? 0}
+                        onChange={(e) => field.onChange(Number(e.target.value))}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name='quota_weekly_reset_hour'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Weekly reset hour (0-23)')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        min={0}
+                        max={23}
+                        {...field}
+                        value={field.value ?? 0}
+                        onChange={(e) => field.onChange(Number(e.target.value))}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+          )}
+          <FormField
+            control={form.control}
+            name='quota_reset_timezone'
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('Reset timezone')}</FormLabel>
+                <Select
+                  items={[
+                    { value: 'UTC', label: 'UTC' },
+                    { value: 'Asia/Shanghai', label: 'Asia/Shanghai' },
+                    { value: 'Asia/Tokyo', label: 'Asia/Tokyo' },
+                    { value: 'Europe/London', label: 'Europe/London' },
+                    { value: 'America/New_York', label: 'America/New_York' },
+                    { value: 'America/Los_Angeles', label: 'America/Los_Angeles' },
+                  ]}
+                  value={field.value || 'UTC'}
+                  onValueChange={field.onChange}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value='UTC'>UTC</SelectItem>
+                    <SelectItem value='Asia/Shanghai'>Asia/Shanghai</SelectItem>
+                    <SelectItem value='Asia/Tokyo'>Asia/Tokyo</SelectItem>
+                    <SelectItem value='Europe/London'>Europe/London</SelectItem>
+                    <SelectItem value='America/New_York'>America/New_York</SelectItem>
+                    <SelectItem value='America/Los_Angeles'>America/Los_Angeles</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormItem>
+            )}
+          />
         </>
       )}
       <div className='grid gap-4 sm:grid-cols-2'>
