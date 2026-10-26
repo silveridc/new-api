@@ -479,6 +479,7 @@ func postConsumeQuotaWithResult(relayInfo *relaycommon.RelayInfo, quota int, pre
 			checkAndSendQuotaNotify(relayInfo, quota, preConsumedQuota)
 		}
 	}
+	recordChannelQuotaUsage(relayInfo, quota+preConsumedQuota)
 
 	return result, nil
 }
