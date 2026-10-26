@@ -36,3 +36,16 @@ func TestDeepSeekToolRoutingNamesReportTheirEndpoint(t *testing.T) {
 	}
 	assert.Equal(t, []constant.EndpointType{constant.EndpointTypeOpenAI}, common.GetEndpointTypesByChannelType(constant.ChannelTypeDeepSeek, "deepseek-flash"))
 }
+
+// OpenAI and OpenAI Responses channels are separate protocol families: an
+// OpenAI channel serves chat completions only, and a Responses channel serves
+// only the responses-family endpoints.
+func TestOpenAIAndResponsesChannelsServeSeparateEndpoints(t *testing.T) {
+	assert.Equal(t, []constant.EndpointType{constant.EndpointTypeOpenAI},
+		common.GetEndpointTypesByChannelType(constant.ChannelTypeOpenAI, "gpt-4o"))
+	assert.Equal(t, []constant.EndpointType{
+		constant.EndpointTypeOpenAIResponse,
+		constant.EndpointTypeOpenAIResponseCompact,
+		constant.EndpointTypeOpenAIAlphaSearch,
+	}, common.GetEndpointTypesByChannelType(constant.ChannelTypeOpenAIResponses, "gpt-4o"))
+}

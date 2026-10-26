@@ -44,6 +44,10 @@ func Distribute() func(c *gin.Context) {
 			Kind:        taskdto.FilterRequestPath,
 			RequestPath: c.Request.URL.Path,
 		})
+		constraints.AddFilter(taskdto.ChannelFilter{Kind: taskdto.FilterChannelQuota})
+		if endpointType := relayEndpointTypeForPath(c.Request.URL.Path); endpointType != "" {
+			constraints.AddFilter(taskdto.ChannelFilter{Kind: taskdto.FilterEndpointType, EndpointType: endpointType})
+		}
 		service.AppendTaskPluginIdentityFilter(c, c.GetString("expected_task_plugin_key"))
 		modelRequest, shouldSelectChannel, err := getModelRequest(c)
 		if err != nil {
@@ -693,4 +697,17 @@ func extractModelNameFromGeminiPath(path string) string {
 
 	// 返回模型名部分
 	return path[startIndex : startIndex+colonIndex]
+}
+
+// relayEndpointTypeForPath maps the incoming path to the endpoint family that
+// decides which channel types may serve it. Returning "" leaves selection
+// unfiltered, which keeps every other endpoint on its existing behavior.
+func relayEndpointTypeForPath(path string) constant.EndpointType {
+	switch {
+	case path == "/v1/responses", path == "/v1/responses/compact", path == "/v1/alpha/search":
+		return constant.EndpointTypeOpenAIResponse
+	case path == "/v1/chat/completions", path == "/v1/completions", path == "/pg/chat/completions":
+		return constant.EndpointTypeOpenAI
+	}
+	return ""
 }

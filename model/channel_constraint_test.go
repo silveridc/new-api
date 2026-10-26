@@ -216,3 +216,65 @@ func TestChannelSatisfiesFilters(t *testing.T) {
 	assert.False(t, ok)
 	assert.Equal(t, dto.FilterRequestPath, kind)
 }
+
+func TestChannelSatisfiesEndpointAndQuotaFilters(t *testing.T) {
+	chatOnly := &Channel{Id: 1, Type: constant.ChannelTypeOpenAI}
+	responsesOnly := &Channel{Id: 2, Type: constant.ChannelTypeOpenAIResponses}
+	codex := &Channel{Id: 3, Type: constant.ChannelTypeCodex}
+
+	chatFilter := []dto.ChannelFilter{{Kind: dto.FilterEndpointType, EndpointType: constant.EndpointTypeOpenAI}}
+	responsesFilter := []dto.ChannelFilter{{Kind: dto.FilterEndpointType, EndpointType: constant.EndpointTypeOpenAIResponse}}
+
+	ok, _ := ChannelSatisfiesFilters(chatOnly, "gpt-4o", chatFilter)
+	assert.True(t, ok, "an OpenAI channel serves chat completions")
+	ok, kind := ChannelSatisfiesFilters(chatOnly, "gpt-4o", responsesFilter)
+	assert.False(t, ok, "an OpenAI channel must not serve the Responses API")
+	assert.Equal(t, dto.FilterEndpointType, kind)
+
+	ok, _ = ChannelSatisfiesFilters(responsesOnly, "gpt-4o", responsesFilter)
+	assert.True(t, ok, "a Responses channel serves the Responses API")
+	ok, _ = ChannelSatisfiesFilters(responsesOnly, "gpt-4o", chatFilter)
+	assert.False(t, ok, "a Responses channel must not serve chat completions")
+
+	ok, _ = ChannelSatisfiesFilters(codex, "gpt-5-codex", responsesFilter)
+	assert.True(t, ok, "Codex channels keep serving the Responses API")
+
+	quotaSetting := kitdto.ChannelOtherSettings{
+		Quota: &kitdto.ChannelQuotaLimit{
+			Enabled:    true,
+			DailyLimit: 1,
+			DailyUsed:  1,
+			DailyStart: 4102444800, // far future start keeps the window active
+		},
+		ModelQuotas: []kitdto.ChannelModelQuota{{
+			Model: "gpt-4o",
+			ChannelQuotaLimit: kitdto.ChannelQuotaLimit{
+				Enabled:    true,
+				DailyLimit: 100,
+			},
+		}},
+	}
+	quotaChannel := &Channel{Id: 4, Type: constant.ChannelTypeOpenAI}
+	quotaChannel.SetOtherSettings(quotaSetting)
+	quotaFilter := []dto.ChannelFilter{{Kind: dto.FilterChannelQuota}}
+
+	ok, kind = ChannelSatisfiesFilters(quotaChannel, "gpt-4.1", quotaFilter)
+	assert.False(t, ok, "the exhausted channel gate blocks other models")
+	assert.Equal(t, dto.FilterChannelQuota, kind)
+
+	ok, _ = ChannelSatisfiesFilters(quotaChannel, "gpt-4o", quotaFilter)
+	assert.True(t, ok, "a per-model override replaces the exhausted channel gate")
+
+	expired := kitdto.ChannelOtherSettings{
+		Quota: &kitdto.ChannelQuotaLimit{
+			Enabled:    true,
+			DailyLimit: 1,
+			DailyUsed:  1,
+			DailyStart: 1, // long expired rolling window
+		},
+	}
+	expiredChannel := &Channel{Id: 5, Type: constant.ChannelTypeOpenAI}
+	expiredChannel.SetOtherSettings(expired)
+	ok, _ = ChannelSatisfiesFilters(expiredChannel, "gpt-4.1", quotaFilter)
+	assert.True(t, ok, "an expired daily window makes the channel schedulable again")
+}

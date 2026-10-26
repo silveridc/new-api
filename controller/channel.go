@@ -2324,3 +2324,27 @@ func OllamaVersion(c *gin.Context) {
 		},
 	})
 }
+
+// ResetChannelQuota clears the used amount of a channel's quota gate while
+// keeping the configured limits. A model in the body narrows the reset to that
+// model's override (or the channel gate when no override exists).
+func ResetChannelQuota(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		common.ApiErrorT(c, "Invalid parameters")
+		return
+	}
+	req := struct {
+		Model string `json:"model"`
+	}{}
+	_ = c.ShouldBindJSON(&req)
+	if err := model.ResetChannelQuotaUsage(id, strings.TrimSpace(req.Model)); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	recordManageAudit(c, "channel.quota_reset", map[string]any{
+		"id":    id,
+		"model": req.Model,
+	})
+	common.ApiSuccess(c, nil)
+}

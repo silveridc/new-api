@@ -83,6 +83,20 @@ export const CHANNEL_TYPE_CONFIGS: Record<number, ChannelTypeConfig> = {
       keyMinLength: 20,
     },
   },
+  64: {
+    id: 64,
+    name: CHANNEL_TYPES[64],
+    icon: 'openai',
+    hints: {
+      baseUrl: 'https://api.openai.com',
+      key: 'Format: sk-...',
+      models: 'Models served through the Responses API',
+    },
+    validation: {
+      keyFormat: /^sk-/,
+      keyMinLength: 20,
+    },
+  },
   3: {
     id: 3,
     name: CHANNEL_TYPES[3],

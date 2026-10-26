@@ -83,6 +83,8 @@ require (
 	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0 // indirect
 	github.com/hashicorp/go-version v1.8.0 // indirect
+	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20261025050407-70d862dbc7ee // indirect
+	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/paulmach/orb v0.12.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.25 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect

@@ -1,5 +1,7 @@
 package dto
 
+import "github.com/QuantumNous/new-api/constant"
+
 type ChannelPinSource string
 
 const (
@@ -40,11 +42,14 @@ const (
 	FilterTaskPluginEndpoint ChannelFilterKind = "task_plugin_endpoint"
 	FilterTaskPluginIdentity ChannelFilterKind = "task_plugin_identity"
 	FilterResponsesWebSocket ChannelFilterKind = "responses_websocket"
+	FilterChannelQuota       ChannelFilterKind = "channel_quota"
+	FilterEndpointType       ChannelFilterKind = "endpoint_type"
 )
 
 type ChannelFilter struct {
 	Kind                   ChannelFilterKind
 	RequestPath            string
+	EndpointType           constant.EndpointType
 	TaskPluginKey          string
 	TaskPluginKeys         []string
 	TaskPluginChannelTypes []int

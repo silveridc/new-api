@@ -29,7 +29,7 @@ export const CHANNEL_TYPE_TASK_PLUGIN = 61;
 export const CHANNEL_TYPE_ADVANCED_CUSTOM = 58;
 
 // 支持上游 Responses WebSocket 的渠道类型，与后端允许列表一致
-export const RESPONSES_WEBSOCKET_CHANNEL_TYPES = new Set([1, 57, 58, 59, 60]);
+export const RESPONSES_WEBSOCKET_CHANNEL_TYPES = new Set([1, 57, 58, 59, 60, 64]);
 
 export const HTTP_PROTOCOL_AUTO = 'auto';
 export const HTTP_PROTOCOL_HTTP1 = 'http1';
@@ -205,4 +205,104 @@ export function validateAdvancedCustomRaw(rawStr) {
     // 落到 invalid
   }
   return { ok: false, message: 'invalid' };
+}
+
+const QUOTA_LIMIT_KEYS = ['daily_limit', 'weekly_limit', 'total_limit'];
+
+function normalizeQuotaLimit(raw) {
+  const limit = {};
+  for (const key of QUOTA_LIMIT_KEYS) {
+    const value = Number(raw?.[key]);
+    limit[key] = Number.isFinite(value) && value > 0 ? value : 0;
+  }
+  return limit;
+}
+
+/**
+ * 把后端返回的 model_quotas 数组格式化成可编辑的 JSON 对象：
+ * {"gpt-4o": {"daily_limit": 10, "weekly_limit": 0, "total_limit": 0}}
+ */
+export function formatModelQuotaOverrides(list) {
+  if (!Array.isArray(list) || list.length === 0) {
+    return '';
+  }
+  const map = {};
+  for (const entry of list) {
+    if (!entry || typeof entry.model !== 'string' || entry.model.trim() === '') {
+      continue;
+    }
+    map[entry.model.trim()] = normalizeQuotaLimit(entry);
+  }
+  return Object.keys(map).length === 0 ? '' : JSON.stringify(map, null, 2);
+}
+
+/**
+ * 把编辑文本解析成后端需要的 model_quotas 数组；空文本返回空数组，
+ * 非法 JSON 或非对象时抛出错误。
+ */
+export function parseModelQuotaOverrides(rawStr) {
+  const raw = String(rawStr || '').trim();
+  if (raw === '') {
+    return [];
+  }
+  const parsed = JSON.parse(raw);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('invalid model quota overrides');
+  }
+  const list = [];
+  for (const [model, value] of Object.entries(parsed)) {
+    const name = String(model).trim();
+    if (name === '') {
+      continue;
+    }
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      throw new Error('invalid model quota override for ' + name);
+    }
+    list.push({ model: name, ...normalizeQuotaLimit(value) });
+  }
+  return list;
+}
+
+/**
+ * 把后端返回的 model_upstream_ratios 数组格式化成 {"model": ratio} 文本。
+ */
+export function formatModelUpstreamRatios(list) {
+  if (!Array.isArray(list) || list.length === 0) {
+    return '';
+  }
+  const map = {};
+  for (const entry of list) {
+    if (!entry || typeof entry.model !== 'string' || entry.model.trim() === '') {
+      continue;
+    }
+    const ratio = Number(entry.multiplier);
+    if (Number.isFinite(ratio) && ratio >= 0) {
+      map[entry.model.trim()] = ratio;
+    }
+  }
+  return Object.keys(map).length === 0 ? '' : JSON.stringify(map, null, 2);
+}
+
+/**
+ * 把编辑文本解析成后端需要的 model_upstream_ratios 数组。
+ */
+export function parseModelUpstreamRatios(rawStr) {
+  const raw = String(rawStr || '').trim();
+  if (raw === '') {
+    return [];
+  }
+  const parsed = JSON.parse(raw);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('invalid model upstream ratios');
+  }
+  const list = [];
+  for (const [model, value] of Object.entries(parsed)) {
+    const name = String(model).trim();
+    const ratio = Number(value);
+    if (name === '' || !Number.isFinite(ratio) || ratio < 0) {
+      throw new Error('invalid upstream ratio for ' + name);
+    }
+    list.push({ model: name, multiplier: ratio });
+  }
+  return list;
 }

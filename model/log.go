@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/common/ip2region"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/types"
 
@@ -73,6 +74,7 @@ type Log struct {
 	TokenId           int    `json:"token_id" gorm:"default:0;index"`
 	Group             string `json:"group" gorm:"index"`
 	Ip                string `json:"ip" gorm:"index;default:''"`
+	IpRegion          string `json:"ip_region,omitempty" gorm:"-"`
 	RequestId         string `json:"request_id,omitempty" gorm:"type:varchar(64);index:idx_logs_request_id;default:''"`
 	UpstreamRequestId string `json:"upstream_request_id,omitempty" gorm:"type:varchar(128);index:idx_logs_upstream_request_id;default:''"`
 	Other             string `json:"other"`
@@ -114,6 +116,7 @@ func assignDisplayLogIds(logs []*Log, startIdx int) {
 func formatUserLogs(logs []*Log, startIdx int) {
 	for i := range logs {
 		logs[i].ChannelName = ""
+		logs[i].IpRegion = ip2region.Lookup(logs[i].Ip)
 		logs[i].Other = formatLogOtherJSON(logs[i].Other, logOtherVisibilityUser)
 	}
 	assignDisplayLogIds(logs, startIdx)
@@ -123,6 +126,7 @@ func formatUserLogs(logs []*Log, startIdx int) {
 // admin_info. Root callers must not pass their results through this formatter.
 func FormatAdminLogs(logs []*Log) {
 	for i := range logs {
+		logs[i].IpRegion = ip2region.Lookup(logs[i].Ip)
 		logs[i].Other = formatLogOtherJSON(logs[i].Other, logOtherVisibilityAdmin)
 	}
 }
@@ -131,6 +135,7 @@ func FormatAdminLogs(logs []*Log) {
 // without removing root-only diagnostics.
 func FormatRootLogs(logs []*Log) {
 	for i := range logs {
+		logs[i].IpRegion = ip2region.Lookup(logs[i].Ip)
 		logs[i].Other = formatLogOtherJSON(logs[i].Other, logOtherVisibilityRoot)
 	}
 }
@@ -641,6 +646,7 @@ func StreamAllLogs(ctx context.Context, filter LogFilter, role int, fn func(*Log
 			}
 			log.ChannelName = name
 		}
+		log.IpRegion = ip2region.Lookup(log.Ip)
 		log.Other = formatLogOtherJSON(log.Other, visibility)
 		return fn(log)
 	})
@@ -658,6 +664,7 @@ func StreamUserLogs(ctx context.Context, userId int, filter LogFilter, fn func(*
 		count++
 		log.Id = count
 		log.ChannelName = ""
+		log.IpRegion = ip2region.Lookup(log.Ip)
 		log.Other = formatLogOtherJSON(log.Other, logOtherVisibilityUser)
 		return fn(log)
 	})

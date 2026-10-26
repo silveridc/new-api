@@ -77,6 +77,10 @@ import {
   CHANNEL_TYPE_ADVANCED_CUSTOM,
   CHANNEL_TYPE_NEW_API,
   CHANNEL_TYPE_TASK_PLUGIN,
+  formatModelQuotaOverrides,
+  formatModelUpstreamRatios,
+  parseModelQuotaOverrides,
+  parseModelUpstreamRatios,
 } from './channelSettingFields';
 import ChannelKeyDisplay from '../../../common/ui/ChannelKeyDisplay';
 import { useSecureVerification } from '../../../../hooks/common/useSecureVerification';
@@ -173,6 +177,8 @@ function type2secretPrompt(type) {
   }
 }
 
+const isOpenAICompatibleType = (type) => type === 1 || type === 64;
+
 const EditChannelModal = (props) => {
   const { t } = useTranslation();
   const channelId = props.editingChannel.id;
@@ -235,12 +241,27 @@ const EditChannelModal = (props) => {
     upstream_model_update_last_check_time: 0,
     upstream_model_update_last_detected_models: [],
     upstream_model_update_ignored_models: '',
+    // 额度控制与上游倍率
+    quota_enabled: false,
+    quota_daily_limit: 0,
+    quota_weekly_limit: 0,
+    quota_total_limit: 0,
+    quota_daily_reset_mode: 'rolling',
+    quota_daily_reset_hour: 0,
+    quota_weekly_reset_mode: 'rolling',
+    quota_weekly_reset_day: 1,
+    quota_weekly_reset_hour: 0,
+    quota_reset_timezone: 'UTC',
+    quota_model_overrides: '',
+    upstream_ratio: 0,
+    upstream_model_ratios: '',
   };
   const [batch, setBatch] = useState(false);
   const [multiToSingle, setMultiToSingle] = useState(false);
   const [multiKeyMode, setMultiKeyMode] = useState('random');
   const [autoBan, setAutoBan] = useState(true);
   const [inputs, setInputs] = useState(originInputs);
+  const [quotaUsage, setQuotaUsage] = useState({ daily: 0, weekly: 0, total: 0 });
   const [originModelOptions, setOriginModelOptions] = useState([]);
   const [modelOptions, setModelOptions] = useState([]);
   const [groupOptions, setGroupOptions] = useState([]);
@@ -849,6 +870,25 @@ const EditChannelModal = (props) => {
     handleInputChange('param_override', '');
   };
 
+  const resetChannelQuota = () => {
+    if (!isEdit) {
+      return;
+    }
+    Modal.confirm({
+      title: t('重置额度用量'),
+      content: t('将清零当前已用额度，额度上限保持不变，是否继续？'),
+      onOk: async () => {
+        const res = await API.post(`/api/channel/${channelId}/quota/reset`, {});
+        if (res?.data?.success) {
+          setQuotaUsage({ daily: 0, weekly: 0, total: 0 });
+          showSuccess(t('额度用量已清零'));
+        } else {
+          showError(res?.data?.message || t('清零失败'));
+        }
+      },
+    });
+  };
+
   const loadChannel = async () => {
     setLoading(true);
     let res = await API.get(`/api/channel/${channelId}`);
@@ -933,6 +973,29 @@ const EditChannelModal = (props) => {
           )
             ? parsedSettings.upstream_model_update_ignored_models.join(',')
             : '';
+          const quota = parsedSettings.quota || {};
+          data.quota_enabled = quota.enabled === true;
+          data.quota_daily_limit = Number(quota.daily_limit) || 0;
+          data.quota_weekly_limit = Number(quota.weekly_limit) || 0;
+          data.quota_total_limit = Number(quota.total_limit) || 0;
+          data.quota_daily_reset_mode = quota.daily_reset_mode || 'rolling';
+          data.quota_daily_reset_hour = Number(quota.daily_reset_hour) || 0;
+          data.quota_weekly_reset_mode = quota.weekly_reset_mode || 'rolling';
+          data.quota_weekly_reset_day = Number(quota.weekly_reset_day) || 0;
+          data.quota_weekly_reset_hour = Number(quota.weekly_reset_hour) || 0;
+          data.quota_reset_timezone = quota.reset_timezone || 'UTC';
+          data.quota_model_overrides = formatModelQuotaOverrides(
+            parsedSettings.model_quotas,
+          );
+          data.upstream_ratio = Number(parsedSettings.upstream_ratio) || 0;
+          data.upstream_model_ratios = formatModelUpstreamRatios(
+            parsedSettings.model_upstream_ratios,
+          );
+          setQuotaUsage({
+            daily: Number(quota.daily_used) || 0,
+            weekly: Number(quota.weekly_used) || 0,
+            total: Number(quota.total_used) || 0,
+          });
           // 高级自定义渠道（58）：路由配置存放在 settings JSON 的
           // advanced_custom 字段（对象），编辑时序列化为字符串
           data.advanced_custom = parseAdvancedCustomFormValue(data.settings);
@@ -956,6 +1019,13 @@ const EditChannelModal = (props) => {
           data.upstream_model_update_last_check_time = 0;
           data.upstream_model_update_last_detected_models = [];
           data.upstream_model_update_ignored_models = '';
+          data.quota_enabled = false;
+          data.quota_daily_limit = 0;
+          data.quota_weekly_limit = 0;
+          data.quota_total_limit = 0;
+          data.quota_model_overrides = '';
+          data.upstream_ratio = 0;
+          data.upstream_model_ratios = '';
         }
       } else {
         // 兼容历史数据：老渠道没有 settings 时，默认按 json 展示
@@ -975,6 +1045,13 @@ const EditChannelModal = (props) => {
         data.upstream_model_update_last_check_time = 0;
         data.upstream_model_update_last_detected_models = [];
         data.upstream_model_update_ignored_models = '';
+        data.quota_enabled = false;
+        data.quota_daily_limit = 0;
+        data.quota_weekly_limit = 0;
+        data.quota_total_limit = 0;
+        data.quota_model_overrides = '';
+        data.upstream_ratio = 0;
+        data.upstream_model_ratios = '';
       }
 
       if (
@@ -1850,10 +1927,10 @@ const EditChannelModal = (props) => {
     }
 
     // type === 1 (OpenAI) 或 type === 14 (Claude): 设置字段透传控制（显式保存布尔值）
-    if (localInputs.type === 1 || localInputs.type === 14) {
+    if (localInputs.type === 1 || localInputs.type === 64 || localInputs.type === 14) {
       settings.allow_service_tier = localInputs.allow_service_tier === true;
       // 仅 OpenAI 渠道需要 store / safety_identifier / include_obfuscation
-      if (localInputs.type === 1) {
+      if (localInputs.type === 1 || localInputs.type === 64) {
         settings.disable_store = localInputs.disable_store === true;
         settings.allow_safety_identifier =
           localInputs.allow_safety_identifier === true;
@@ -1900,6 +1977,38 @@ const EditChannelModal = (props) => {
       settings.upstream_model_update_last_check_time = 0;
     }
 
+    // 渠道额度与上游倍率：保留后端已有的已用量/窗口起点，只覆盖表单字段
+    const previousQuota =
+      originalSettingRef.current?.quota &&
+      typeof originalSettingRef.current.quota === 'object'
+        ? originalSettingRef.current.quota
+        : {};
+    settings.quota = {
+      ...previousQuota,
+      enabled: localInputs.quota_enabled === true,
+      daily_limit: Number(localInputs.quota_daily_limit) || 0,
+      weekly_limit: Number(localInputs.quota_weekly_limit) || 0,
+      total_limit: Number(localInputs.quota_total_limit) || 0,
+      daily_reset_mode: localInputs.quota_daily_reset_mode || 'rolling',
+      daily_reset_hour: Number(localInputs.quota_daily_reset_hour) || 0,
+      weekly_reset_mode: localInputs.quota_weekly_reset_mode || 'rolling',
+      weekly_reset_day: Number(localInputs.quota_weekly_reset_day) || 0,
+      weekly_reset_hour: Number(localInputs.quota_weekly_reset_hour) || 0,
+      reset_timezone: localInputs.quota_reset_timezone || 'UTC',
+    };
+    try {
+      settings.model_quotas = parseModelQuotaOverrides(
+        localInputs.quota_model_overrides,
+      );
+      settings.model_upstream_ratios = parseModelUpstreamRatios(
+        localInputs.upstream_model_ratios,
+      );
+    } catch (error) {
+      showError(t('模型额度或上游倍率的 JSON 格式不正确'));
+      return;
+    }
+    settings.upstream_ratio = Number(localInputs.upstream_ratio) || 0;
+
     localInputs.settings = JSON.stringify(settings);
 
     // 清理不需要发送到后端的字段
@@ -1935,6 +2044,19 @@ const EditChannelModal = (props) => {
     delete localInputs.task_plugin_key;
     delete localInputs.task_extend_plugin_keys;
     delete localInputs.advanced_custom;
+    delete localInputs.quota_enabled;
+    delete localInputs.quota_daily_limit;
+    delete localInputs.quota_weekly_limit;
+    delete localInputs.quota_total_limit;
+    delete localInputs.quota_daily_reset_mode;
+    delete localInputs.quota_daily_reset_hour;
+    delete localInputs.quota_weekly_reset_mode;
+    delete localInputs.quota_weekly_reset_day;
+    delete localInputs.quota_weekly_reset_hour;
+    delete localInputs.quota_reset_timezone;
+    delete localInputs.quota_model_overrides;
+    delete localInputs.upstream_ratio;
+    delete localInputs.upstream_model_ratios;
 
     let res;
     localInputs.auto_ban = localInputs.auto_ban ? 1 : 0;
@@ -2567,7 +2689,7 @@ const EditChannelModal = (props) => {
                     </Col>
                   </Row>
 
-                  {inputs.type === 1 && (
+                  {isOpenAICompatibleType(inputs.type) && (
                     <>
                       <div className='mt-4 mb-2 text-sm font-medium text-gray-700'>
                         {t('字段透传控制')}
@@ -2596,6 +2718,174 @@ const EditChannelModal = (props) => {
                   <Text className='text-sm font-medium text-gray-500 mb-3 block'>
                     {t('额外设置')}
                   </Text>
+
+                  <div className='mt-2 mb-2 text-sm font-medium text-gray-700'>
+                    {t('额度与上游倍率')}
+                  </div>
+                  <Form.Switch
+                    field='quota_enabled'
+                    label={t('启用额度限制')}
+                    checkedText={t('开')}
+                    uncheckedText={t('关')}
+                    onChange={(value) => handleInputChange('quota_enabled', value === true)}
+                    extraText={t('按用户实际扣费金额累计，任一维度达到额度后该渠道不再调度这个模型；0 表示不限制')}
+                  />
+                  {inputs.quota_enabled && (
+                    <>
+                      <Row gutter={12}>
+                        <Col span={8}>
+                          <Form.InputNumber
+                            field='quota_daily_limit'
+                            label={t('日限额（美元）')}
+                            min={0}
+                            step={0.01}
+                            onNumberChange={(value) => handleInputChange('quota_daily_limit', value || 0)}
+                            style={{ width: '100%' }}
+                          />
+                        </Col>
+                        <Col span={8}>
+                          <Form.InputNumber
+                            field='quota_weekly_limit'
+                            label={t('周限额（美元）')}
+                            min={0}
+                            step={0.01}
+                            onNumberChange={(value) => handleInputChange('quota_weekly_limit', value || 0)}
+                            style={{ width: '100%' }}
+                          />
+                        </Col>
+                        <Col span={8}>
+                          <Form.InputNumber
+                            field='quota_total_limit'
+                            label={t('总额度（美元）')}
+                            min={0}
+                            step={0.01}
+                            onNumberChange={(value) => handleInputChange('quota_total_limit', value || 0)}
+                            style={{ width: '100%' }}
+                          />
+                        </Col>
+                      </Row>
+                      <Row gutter={12}>
+                        <Col span={6}>
+                          <Form.Select
+                            field='quota_daily_reset_mode'
+                            label={t('日限额重置方式')}
+                            optionList={[
+                              { label: t('滚动窗口（首次使用起 24 小时）'), value: 'rolling' },
+                              { label: t('固定时点'), value: 'fixed' },
+                            ]}
+                            onChange={(value) => handleInputChange('quota_daily_reset_mode', value || 'rolling')}
+                            style={{ width: '100%' }}
+                          />
+                        </Col>
+                        {inputs.quota_daily_reset_mode === 'fixed' && (
+                          <Col span={6}>
+                            <Form.InputNumber
+                              field='quota_daily_reset_hour'
+                              label={t('每日重置小时（0-23）')}
+                              min={0}
+                              max={23}
+                              onNumberChange={(value) => handleInputChange('quota_daily_reset_hour', value || 0)}
+                              style={{ width: '100%' }}
+                            />
+                          </Col>
+                        )}
+                        <Col span={6}>
+                          <Form.Select
+                            field='quota_weekly_reset_mode'
+                            label={t('周限额重置方式')}
+                            optionList={[
+                              { label: t('滚动窗口（首次使用起 7 天）'), value: 'rolling' },
+                              { label: t('固定时点'), value: 'fixed' },
+                            ]}
+                            onChange={(value) => handleInputChange('quota_weekly_reset_mode', value || 'rolling')}
+                            style={{ width: '100%' }}
+                          />
+                        </Col>
+                        {inputs.quota_weekly_reset_mode === 'fixed' && (
+                          <>
+                            <Col span={6}>
+                              <Form.Select
+                                field='quota_weekly_reset_day'
+                                label={t('每周重置日')}
+                                optionList={[
+                                  { label: t('周日'), value: 0 },
+                                  { label: t('周一'), value: 1 },
+                                  { label: t('周二'), value: 2 },
+                                  { label: t('周三'), value: 3 },
+                                  { label: t('周四'), value: 4 },
+                                  { label: t('周五'), value: 5 },
+                                  { label: t('周六'), value: 6 },
+                                ]}
+                                onChange={(value) => handleInputChange('quota_weekly_reset_day', value || 0)}
+                                style={{ width: '100%' }}
+                              />
+                            </Col>
+                            <Col span={6}>
+                              <Form.InputNumber
+                                field='quota_weekly_reset_hour'
+                                label={t('每周重置小时（0-23）')}
+                                min={0}
+                                max={23}
+                                onNumberChange={(value) => handleInputChange('quota_weekly_reset_hour', value || 0)}
+                                style={{ width: '100%' }}
+                              />
+                            </Col>
+                          </>
+                        )}
+                        <Col span={6}>
+                          <Form.Select
+                            field='quota_reset_timezone'
+                            label={t('重置时区')}
+                            optionList={[
+                              { label: 'UTC', value: 'UTC' },
+                              { label: 'Asia/Shanghai', value: 'Asia/Shanghai' },
+                              { label: 'Asia/Tokyo', value: 'Asia/Tokyo' },
+                              { label: 'Europe/London', value: 'Europe/London' },
+                              { label: 'America/New_York', value: 'America/New_York' },
+                              { label: 'America/Los_Angeles', value: 'America/Los_Angeles' },
+                            ]}
+                            onChange={(value) => handleInputChange('quota_reset_timezone', value || 'UTC')}
+                            style={{ width: '100%' }}
+                          />
+                        </Col>
+                      </Row>
+                      <div className='mb-4 flex flex-wrap items-center gap-3 text-xs text-gray-500'>
+                        <span>
+                          {t('已用（按用户扣费）')}：{t('日')} ${quotaUsage.daily.toFixed(4)} · {t('周')} ${quotaUsage.weekly.toFixed(4)} · {t('总')} ${quotaUsage.total.toFixed(4)}
+                        </span>
+                        {isEdit && (
+                          <Button size='small' onClick={resetChannelQuota}>
+                            {t('重置额度用量')}
+                          </Button>
+                        )}
+                      </div>
+                      <Form.TextArea
+                        field='quota_model_overrides'
+                        label={t('模型额度覆盖（JSON）')}
+                        placeholder={'{\n  "gpt-4o": { "daily_limit": 10, "weekly_limit": 50, "total_limit": 200 }\n}'}
+                        autosize
+                        onChange={(value) => handleInputChange('quota_model_overrides', value || '')}
+                        extraText={t('可选。按模型覆盖上面的渠道级额度，未填写的维度继承渠道级设置')}
+                      />
+                    </>
+                  )}
+                  <Form.InputNumber
+                    field='upstream_ratio'
+                    label={t('上游倍率（渠道默认）')}
+                    min={0}
+                    step={0.01}
+                    onNumberChange={(value) => handleInputChange('upstream_ratio', value || 0)}
+                    style={{ width: '100%' }}
+                    extraText={t('仅记录并用于成本展示，不影响用户计费；0 表示未配置')}
+                  />
+                  <Form.TextArea
+                    field='upstream_model_ratios'
+                    label={t('模型上游倍率（JSON）')}
+                    placeholder={'{\n  "gpt-4o": 0.8\n}'}
+                    autosize
+                    onChange={(value) => handleInputChange('upstream_model_ratios', value || '')}
+                    extraText={t('可选。按模型覆盖渠道默认上游倍率')}
+                  />
 
                   {inputs.type === 14 && (
                     <Form.Switch field='claude_beta_query' label={t('Claude 强制 beta=true')} checkedText={t('开')} uncheckedText={t('关')} onChange={(value) => handleChannelOtherSettingsChange('claude_beta_query', value)} extraText={t('开启后，该渠道请求 Claude 时将强制追加 ?beta=true（无需客户端手动传参）')} />
@@ -3401,7 +3691,7 @@ const EditChannelModal = (props) => {
                       />
                     )}
 
-                    {inputs.type === 1 && (
+                    {isOpenAICompatibleType(inputs.type) && (
                       <Form.Input
                         field='openai_organization'
                         label={t('组织')}

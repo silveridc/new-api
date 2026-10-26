@@ -757,6 +757,11 @@ export function DetailsDialog(props: DetailsDialogProps) {
                 <span className='flex items-center gap-1'>
                   <Globe className='size-3 text-amber-500' aria-hidden='true' />
                   {props.log.ip}
+                  {props.log.ip_region && (
+                    <span className='text-muted-foreground text-xs'>
+                      {props.log.ip_region}
+                    </span>
+                  )}
                 </span>
               }
               mono

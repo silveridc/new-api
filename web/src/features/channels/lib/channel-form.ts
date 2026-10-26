@@ -291,6 +291,26 @@ export const channelFormSchema = z
     claude_beta_query: z.boolean().optional(), // Anthropic: beta query passthrough
     ollama_openai_chat: z.boolean().optional(), // Ollama: OpenAI-compatible /v1/chat/completions instead of native /api/chat
     disable_task_polling_sleep: z.boolean().optional(),
+    // Channel quota and upstream ratio (stored in settings JSON)
+    quota_enabled: z.boolean().optional(),
+    quota_daily_limit: z.number().min(0).optional(),
+    quota_weekly_limit: z.number().min(0).optional(),
+    quota_total_limit: z.number().min(0).optional(),
+    quota_daily_reset_mode: z.enum(['rolling', 'fixed']).optional(),
+    quota_daily_reset_hour: z.number().int().min(0).max(23).optional(),
+    quota_weekly_reset_mode: z.enum(['rolling', 'fixed']).optional(),
+    quota_weekly_reset_day: z.number().int().min(0).max(6).optional(),
+    quota_weekly_reset_hour: z.number().int().min(0).max(23).optional(),
+    quota_reset_timezone: z.string().optional(),
+    quota_model_overrides: z
+      .string()
+      .optional()
+      .refine(isOptionalJsonObject, ERROR_MESSAGES.INVALID_JSON),
+    upstream_ratio: z.number().min(0).optional(),
+    upstream_model_ratios: z
+      .string()
+      .optional()
+      .refine(isOptionalJsonObject, ERROR_MESSAGES.INVALID_JSON),
     // Upstream model update settings (stored in settings JSON)
     upstream_model_update_check_enabled: z.boolean().optional(),
     upstream_model_update_auto_sync_enabled: z.boolean().optional(),
@@ -423,6 +443,79 @@ export const channelFormSchema = z
     }
   })
 
+// ============================================================================
+// Quota / upstream ratio JSON helpers
+// ============================================================================
+
+const QUOTA_LIMIT_KEYS = ['daily_limit', 'weekly_limit', 'total_limit'] as const
+
+function normalizeQuotaLimit(raw: unknown): Record<string, number> {
+  const source = isJsonObjectValue(raw) ? raw : {}
+  const limit: Record<string, number> = {}
+  for (const key of QUOTA_LIMIT_KEYS) {
+    const value = Number(source[key])
+    limit[key] = Number.isFinite(value) && value > 0 ? value : 0
+  }
+  return limit
+}
+
+function formatModelQuotaOverrides(raw: unknown): string {
+  if (!Array.isArray(raw) || raw.length === 0) return ''
+  const map: Record<string, Record<string, number>> = {}
+  for (const entry of raw) {
+    if (!isJsonObjectValue(entry)) continue
+    const model = String(entry.model || '').trim()
+    if (!model) continue
+    map[model] = normalizeQuotaLimit(entry)
+  }
+  return Object.keys(map).length === 0 ? '' : JSON.stringify(map, null, 2)
+}
+
+function parseModelQuotaOverrides(raw?: string): Array<Record<string, unknown>> {
+  const text = String(raw || '').trim()
+  if (text === '') return []
+  const parsed = JSON.parse(text)
+  if (!isJsonObjectValue(parsed)) {
+    throw new Error('invalid model quota overrides')
+  }
+  return Object.entries(parsed)
+    .filter(([model]) => String(model).trim() !== '')
+    .map(([model, value]) => ({
+      model: String(model).trim(),
+      ...normalizeQuotaLimit(value),
+    }))
+}
+
+function formatModelUpstreamRatios(raw: unknown): string {
+  if (!Array.isArray(raw) || raw.length === 0) return ''
+  const map: Record<string, number> = {}
+  for (const entry of raw) {
+    if (!isJsonObjectValue(entry)) continue
+    const model = String(entry.model || '').trim()
+    const ratio = Number(entry.multiplier)
+    if (!model || !Number.isFinite(ratio) || ratio < 0) continue
+    map[model] = ratio
+  }
+  return Object.keys(map).length === 0 ? '' : JSON.stringify(map, null, 2)
+}
+
+function parseModelUpstreamRatios(raw?: string): Array<Record<string, unknown>> {
+  const text = String(raw || '').trim()
+  if (text === '') return []
+  const parsed = JSON.parse(text)
+  if (!isJsonObjectValue(parsed)) {
+    throw new Error('invalid model upstream ratios')
+  }
+  return Object.entries(parsed).map(([model, value]) => {
+    const name = String(model).trim()
+    const ratio = Number(value)
+    if (!name || !Number.isFinite(ratio) || ratio < 0) {
+      throw new Error(`invalid upstream ratio for ${name}`)
+    }
+    return { model: name, multiplier: ratio }
+  })
+}
+
 export type ChannelFormValues = z.infer<typeof channelFormSchema>
 
 // ============================================================================
@@ -488,6 +581,20 @@ export const CHANNEL_FORM_DEFAULT_VALUES: ChannelFormValues = {
   upstream_model_update_check_enabled: false,
   upstream_model_update_auto_sync_enabled: false,
   upstream_model_update_ignored_models: '',
+  // Channel quota and upstream ratio
+  quota_enabled: false,
+  quota_daily_limit: 0,
+  quota_weekly_limit: 0,
+  quota_total_limit: 0,
+  quota_daily_reset_mode: 'rolling',
+  quota_daily_reset_hour: 0,
+  quota_weekly_reset_mode: 'rolling',
+  quota_weekly_reset_day: 1,
+  quota_weekly_reset_hour: 0,
+  quota_reset_timezone: 'UTC',
+  quota_model_overrides: '',
+  upstream_ratio: 0,
+  upstream_model_ratios: '',
   advanced_custom: '',
 }
 
@@ -565,6 +672,19 @@ export function transformChannelToFormDefaults(
   let upstreamModelUpdateAutoSyncEnabled = false
   let upstreamModelUpdateIgnoredModels = ''
   let advancedCustom = ''
+  let quotaEnabled = false
+  let quotaDailyLimit = 0
+  let quotaWeeklyLimit = 0
+  let quotaTotalLimit = 0
+  let quotaDailyResetMode: 'rolling' | 'fixed' = 'rolling'
+  let quotaDailyResetHour = 0
+  let quotaWeeklyResetMode: 'rolling' | 'fixed' = 'rolling'
+  let quotaWeeklyResetDay = 1
+  let quotaWeeklyResetHour = 0
+  let quotaResetTimezone = 'UTC'
+  let quotaModelOverrides = ''
+  let upstreamRatio = 0
+  let upstreamModelRatios = ''
 
   if (channel.settings) {
     try {
@@ -596,6 +716,26 @@ export function transformChannelToFormDefaults(
       if (parsed.advanced_custom) {
         advancedCustom = stringifyAdvancedCustomConfig(parsed.advanced_custom)
       }
+      const quota = isJsonObjectValue(parsed.quota) ? parsed.quota : {}
+      quotaEnabled = quota.enabled === true
+      quotaDailyLimit = Number(quota.daily_limit) || 0
+      quotaWeeklyLimit = Number(quota.weekly_limit) || 0
+      quotaTotalLimit = Number(quota.total_limit) || 0
+      quotaDailyResetMode = quota.daily_reset_mode === 'fixed' ? 'fixed' : 'rolling'
+      quotaDailyResetHour = Number(quota.daily_reset_hour) || 0
+      quotaWeeklyResetMode =
+        quota.weekly_reset_mode === 'fixed' ? 'fixed' : 'rolling'
+      quotaWeeklyResetDay = Number(quota.weekly_reset_day) || 0
+      quotaWeeklyResetHour = Number(quota.weekly_reset_hour) || 0
+      quotaResetTimezone =
+        typeof quota.reset_timezone === 'string' && quota.reset_timezone
+          ? quota.reset_timezone
+          : 'UTC'
+      quotaModelOverrides = formatModelQuotaOverrides(parsed.model_quotas)
+      upstreamRatio = Number(parsed.upstream_ratio) || 0
+      upstreamModelRatios = formatModelUpstreamRatios(
+        parsed.model_upstream_ratios
+      )
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Failed to parse channel settings:', error)
@@ -649,6 +789,19 @@ export function transformChannelToFormDefaults(
     upstream_model_update_check_enabled: upstreamModelUpdateCheckEnabled,
     upstream_model_update_auto_sync_enabled: upstreamModelUpdateAutoSyncEnabled,
     upstream_model_update_ignored_models: upstreamModelUpdateIgnoredModels,
+    quota_enabled: quotaEnabled,
+    quota_daily_limit: quotaDailyLimit,
+    quota_weekly_limit: quotaWeeklyLimit,
+    quota_total_limit: quotaTotalLimit,
+    quota_daily_reset_mode: quotaDailyResetMode,
+    quota_daily_reset_hour: quotaDailyResetHour,
+    quota_weekly_reset_mode: quotaWeeklyResetMode,
+    quota_weekly_reset_day: quotaWeeklyResetDay,
+    quota_weekly_reset_hour: quotaWeeklyResetHour,
+    quota_reset_timezone: quotaResetTimezone,
+    quota_model_overrides: quotaModelOverrides,
+    upstream_ratio: upstreamRatio,
+    upstream_model_ratios: upstreamModelRatios,
     advanced_custom: advancedCustom,
   }
 }
@@ -749,6 +902,32 @@ function buildSettingsJSON(formData: ChannelFormValues): string {
     delete settingsObj.aws_key_type
     delete settingsObj.aws_api_type
   }
+
+  // Channel quota and upstream ratio. Keep the persisted usage counters that
+  // this form does not edit, and rebuild the override arrays from their JSON.
+  const previousQuota = isJsonObjectValue(settingsObj.quota)
+    ? settingsObj.quota
+    : {}
+  settingsObj.quota = {
+    ...previousQuota,
+    enabled: formData.quota_enabled === true,
+    daily_limit: formData.quota_daily_limit || 0,
+    weekly_limit: formData.quota_weekly_limit || 0,
+    total_limit: formData.quota_total_limit || 0,
+    daily_reset_mode: formData.quota_daily_reset_mode || 'rolling',
+    daily_reset_hour: formData.quota_daily_reset_hour || 0,
+    weekly_reset_mode: formData.quota_weekly_reset_mode || 'rolling',
+    weekly_reset_day: formData.quota_weekly_reset_day || 0,
+    weekly_reset_hour: formData.quota_weekly_reset_hour || 0,
+    reset_timezone: formData.quota_reset_timezone || 'UTC',
+  }
+  settingsObj.model_quotas = parseModelQuotaOverrides(
+    formData.quota_model_overrides
+  )
+  settingsObj.upstream_ratio = formData.upstream_ratio || 0
+  settingsObj.model_upstream_ratios = parseModelUpstreamRatios(
+    formData.upstream_model_ratios
+  )
 
   // Field passthrough controls:
   // - OpenAI, Anthropic, Codex, and New API: allow_service_tier

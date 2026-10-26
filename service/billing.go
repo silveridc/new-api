@@ -7,8 +7,10 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/logger"
+	"github.com/QuantumNous/new-api/model"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relaykit/types"
+	"github.com/bytedance/gopkg/util/gopool"
 	"github.com/gin-gonic/gin"
 )
 
@@ -88,6 +90,7 @@ func SettleBilling(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, actualQuo
 		if err := relayInfo.Billing.Settle(actualQuota); err != nil {
 			return err
 		}
+		recordChannelQuotaUsage(relayInfo, actualQuota)
 
 		// 发送额度通知（订阅计费使用订阅剩余额度）
 		if actualQuota != 0 {
@@ -103,7 +106,31 @@ func SettleBilling(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, actualQuo
 	// 回退：无 BillingSession 时使用旧路径
 	quotaDelta := actualQuota - relayInfo.FinalPreConsumedQuota
 	if quotaDelta != 0 {
-		return PostConsumeQuota(relayInfo, quotaDelta, relayInfo.FinalPreConsumedQuota, true)
+		err := PostConsumeQuota(relayInfo, quotaDelta, relayInfo.FinalPreConsumedQuota, true)
+		if err == nil {
+			recordChannelQuotaUsage(relayInfo, actualQuota)
+		}
+		return err
 	}
 	return nil
+}
+
+// recordChannelQuotaUsage feeds the amount the user was actually charged into
+// the channel quota gate for this model. It runs after settlement so a failed
+// charge never consumes the operator's upstream budget.
+func recordChannelQuotaUsage(relayInfo *relaycommon.RelayInfo, actualQuota int) {
+	if relayInfo == nil || actualQuota <= 0 || relayInfo.ChannelId <= 0 {
+		return
+	}
+	modelName := relayInfo.OriginModelName
+	if modelName == "" {
+		modelName = relayInfo.UpstreamModelName
+	}
+	if modelName == "" {
+		return
+	}
+	amount := float64(actualQuota) / common.QuotaPerUnit
+	gopool.Go(func() {
+		model.AccumulateChannelQuotaUsage(relayInfo.ChannelId, modelName, amount)
+	})
 }

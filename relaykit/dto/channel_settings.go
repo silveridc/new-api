@@ -88,6 +88,51 @@ func (s *ChannelSettings) ValidateHTTPTransport() error {
 	return nil
 }
 
+// ChannelQuotaResetMode selects how a daily/weekly quota window rolls over.
+// "rolling" starts the window at first use; "fixed" resets at a wall-clock
+// boundary in the channel's timezone.
+type ChannelQuotaResetMode string
+
+const (
+	ChannelQuotaResetRolling ChannelQuotaResetMode = "rolling"
+	ChannelQuotaResetFixed   ChannelQuotaResetMode = "fixed"
+)
+
+// ChannelQuotaLimit is the quota gate for one channel, expressed in USD. A
+// zero limit disables that dimension. Used values accumulate from the amount
+// the user is actually charged, so the gate never depends on upstream pricing.
+type ChannelQuotaLimit struct {
+	Enabled         bool                  `json:"enabled,omitempty"`
+	DailyLimit      float64               `json:"daily_limit,omitempty"`
+	DailyResetMode  ChannelQuotaResetMode `json:"daily_reset_mode,omitempty"`
+	DailyResetHour  int                   `json:"daily_reset_hour,omitempty"`
+	WeeklyLimit     float64               `json:"weekly_limit,omitempty"`
+	WeeklyResetMode ChannelQuotaResetMode `json:"weekly_reset_mode,omitempty"`
+	WeeklyResetDay  int                   `json:"weekly_reset_day,omitempty"`
+	WeeklyResetHour int                   `json:"weekly_reset_hour,omitempty"`
+	TotalLimit      float64               `json:"total_limit,omitempty"`
+	ResetTimezone   string                `json:"reset_timezone,omitempty"`
+	DailyUsed       float64               `json:"daily_used,omitempty"`
+	DailyStart      int64                 `json:"daily_start,omitempty"`
+	WeeklyUsed      float64               `json:"weekly_used,omitempty"`
+	WeeklyStart     int64                 `json:"weekly_start,omitempty"`
+	TotalUsed       float64               `json:"total_used,omitempty"`
+}
+
+// ChannelModelQuota overrides the channel-level gate for one model.
+type ChannelModelQuota struct {
+	Model string `json:"model"`
+	ChannelQuotaLimit
+}
+
+// ChannelUpstreamRatio records what the upstream charges for a model. It is
+// cost information for the operator; user billing continues to use the local
+// model/group ratios.
+type ChannelUpstreamRatio struct {
+	Model      string  `json:"model"`
+	Multiplier float64 `json:"multiplier"`
+}
+
 type VertexKeyType string
 
 const (
@@ -139,6 +184,14 @@ type ChannelOtherSettings struct {
 	// rejection. Empty follows the default allow policy. Accepted values:
 	// "", "allow", "safe", "strict".
 	ToolLossPolicy string `json:"tool_loss_policy,omitempty"`
+	// Quota gates upstream spend per channel. ModelQuotas override the
+	// channel-level gate for the models they name.
+	Quota       *ChannelQuotaLimit  `json:"quota,omitempty"`
+	ModelQuotas []ChannelModelQuota `json:"model_quotas,omitempty"`
+	// UpstreamRatio is the channel default cost multiplier reported by the
+	// upstream; ModelUpstreamRatios override it per model.
+	UpstreamRatio       float64                `json:"upstream_ratio,omitempty"`
+	ModelUpstreamRatios []ChannelUpstreamRatio `json:"model_upstream_ratios,omitempty"`
 }
 
 func (s *ChannelOtherSettings) IsOpenRouterEnterprise() bool {

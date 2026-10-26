@@ -36,6 +36,7 @@ import {
   Eye,
   RefreshCw,
   Code,
+  Gauge,
   Route,
   Settings,
   SlidersHorizontal,
@@ -318,6 +319,19 @@ const SENSITIVE_FORM_FIELDS = [
   'upstream_model_update_check_enabled',
   'upstream_model_update_auto_sync_enabled',
   'upstream_model_update_ignored_models',
+  'quota_enabled',
+  'quota_daily_limit',
+  'quota_weekly_limit',
+  'quota_total_limit',
+  'quota_daily_reset_mode',
+  'quota_daily_reset_hour',
+  'quota_weekly_reset_mode',
+  'quota_weekly_reset_day',
+  'quota_weekly_reset_hour',
+  'quota_reset_timezone',
+  'quota_model_overrides',
+  'upstream_ratio',
+  'upstream_model_ratios',
 ] satisfies (keyof ChannelFormValues)[]
 
 function parseSettingsRecord(
@@ -2186,6 +2200,243 @@ export function ChannelMutateDrawer({
         </FormItem>
       )}
     />
+  )
+
+  const quotaFields = (
+    <div
+      role='group'
+      aria-label={t('Quota & Upstream Ratio')}
+      className='flex flex-col gap-4'
+    >
+      <SubHeading
+        title={t('Quota & Upstream Ratio')}
+        status={configuration.blocks.extraSettings}
+        icon={<Gauge className='h-3.5 w-3.5' />}
+        iconTone='chart-4'
+      />
+      <FormField
+        control={form.control}
+        name='quota_enabled'
+        render={({ field }) => (
+          <FormItem className='flex items-center justify-between px-4 py-3'>
+            <div className='space-y-0.5'>
+              <FormLabel>{t('Enable quota limits')}</FormLabel>
+              <FormDescription>
+                {t(
+                  'Usage accumulates from what the user is actually charged. When any dimension reaches its limit, this channel stops serving the model; 0 means unlimited.'
+                )}
+              </FormDescription>
+            </div>
+            <FormControl>
+              <Switch
+                disabled={sensitiveLocked}
+                checked={field.value === true}
+                onCheckedChange={field.onChange}
+              />
+            </FormControl>
+          </FormItem>
+        )}
+      />
+      {formValues.quota_enabled === true && (
+        <>
+          <div className='grid gap-4 sm:grid-cols-3'>
+            <FormField
+              control={form.control}
+              name='quota_daily_limit'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Daily limit (USD)')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type='number'
+                      min={0}
+                      step='0.01'
+                      {...field}
+                      value={field.value ?? 0}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name='quota_weekly_limit'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Weekly limit (USD)')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type='number'
+                      min={0}
+                      step='0.01'
+                      {...field}
+                      value={field.value ?? 0}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name='quota_total_limit'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Total limit (USD)')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type='number'
+                      min={0}
+                      step='0.01'
+                      {...field}
+                      value={field.value ?? 0}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+          </div>
+          <div className='grid gap-4 sm:grid-cols-2'>
+            <FormField
+              control={form.control}
+              name='quota_daily_reset_mode'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Daily reset mode')}</FormLabel>
+                  <Select
+                    items={[
+                      {
+                        value: 'rolling',
+                        label: t('Rolling window (24h from first use)'),
+                      },
+                      { value: 'fixed', label: t('Fixed time') },
+                    ]}
+                    value={field.value || 'rolling'}
+                    onValueChange={field.onChange}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value='rolling'>
+                        {t('Rolling window (24h from first use)')}
+                      </SelectItem>
+                      <SelectItem value='fixed'>{t('Fixed time')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name='quota_weekly_reset_mode'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Weekly reset mode')}</FormLabel>
+                  <Select
+                    items={[
+                      {
+                        value: 'rolling',
+                        label: t('Rolling window (7 days from first use)'),
+                      },
+                      { value: 'fixed', label: t('Fixed time') },
+                    ]}
+                    value={field.value || 'rolling'}
+                    onValueChange={field.onChange}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value='rolling'>
+                        {t('Rolling window (7 days from first use)')}
+                      </SelectItem>
+                      <SelectItem value='fixed'>{t('Fixed time')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+            />
+          </div>
+        </>
+      )}
+      <div className='grid gap-4 sm:grid-cols-2'>
+        <FormField
+          control={form.control}
+          name='upstream_ratio'
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('Upstream ratio (channel default)')}</FormLabel>
+              <FormControl>
+                <Input
+                  type='number'
+                  min={0}
+                  step='0.01'
+                  {...field}
+                  value={field.value ?? 0}
+                  onChange={(e) => field.onChange(Number(e.target.value))}
+                />
+              </FormControl>
+              <FormDescription>
+                {t(
+                  'Recorded for cost display only; user billing is unchanged. 0 means unset.'
+                )}
+              </FormDescription>
+            </FormItem>
+          )}
+        />
+      </div>
+      <FormField
+        control={form.control}
+        name='quota_model_overrides'
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t('Per-model quota overrides (JSON)')}</FormLabel>
+            <FormControl>
+              <Textarea
+                rows={3}
+                placeholder={'{\n  "gpt-4o": { "daily_limit": 10 }\n}'}
+                {...field}
+                value={field.value || ''}
+              />
+            </FormControl>
+            <FormDescription>
+              {t(
+                'Optional. Overrides the channel-level limits per model; unset dimensions inherit the channel settings.'
+              )}
+            </FormDescription>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name='upstream_model_ratios'
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t('Per-model upstream ratios (JSON)')}</FormLabel>
+            <FormControl>
+              <Textarea
+                rows={3}
+                placeholder={'{\n  "gpt-4o": 0.8\n}'}
+                {...field}
+                value={field.value || ''}
+              />
+            </FormControl>
+            <FormDescription>
+              {t('Optional. Overrides the channel default upstream ratio per model.')}
+            </FormDescription>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    </div>
   )
 
   const routingFields = (
@@ -4790,6 +5041,7 @@ export function ChannelMutateDrawer({
                 {httpProtocolFields}
                 {httpShardsFields}
                 {tlsInsecureSkipVerifyFields}
+                {quotaFields}
               </fieldset>
             </div>
             {upstreamModelDetectionFields}

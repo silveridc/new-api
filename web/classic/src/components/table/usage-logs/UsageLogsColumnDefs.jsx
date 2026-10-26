@@ -854,7 +854,13 @@ export const getLogsColumns = ({
             (isAdminUser && record.type === 1)) &&
           text;
         return showIp ? (
-          <Tooltip content={text}>
+          <Tooltip
+            content={
+              record.ip_region
+                ? `${text} · ${record.ip_region}`
+                : text
+            }
+          >
             <span>
               <Tag
                 color='orange'

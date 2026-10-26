@@ -2,6 +2,7 @@ package model
 
 import (
 	"slices"
+	"time"
 
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/dto"
@@ -12,6 +13,8 @@ var filterEvalOrder = []dto.ChannelFilterKind{
 	dto.FilterTaskPluginEndpoint,
 	dto.FilterTaskPluginIdentity,
 	dto.FilterResponsesWebSocket,
+	dto.FilterEndpointType,
+	dto.FilterChannelQuota,
 }
 
 // ChannelSatisfiesFilters reports whether ch passes every filter.
@@ -127,7 +130,7 @@ func channelMatchesFilter(ch *Channel, modelName string, filter dto.ChannelFilte
 			return false
 		}
 		switch ch.Type {
-		case constant.ChannelTypeOpenAI, constant.ChannelTypeCodex, constant.ChannelTypeSub2API, constant.ChannelTypeNewAPI:
+		case constant.ChannelTypeOpenAI, constant.ChannelTypeOpenAIResponses, constant.ChannelTypeCodex, constant.ChannelTypeSub2API, constant.ChannelTypeNewAPI:
 			return true
 		case constant.ChannelTypeAdvancedCustom:
 			// The session forwards native Responses events without protocol
@@ -136,6 +139,24 @@ func channelMatchesFilter(ch *Channel, modelName string, filter dto.ChannelFilte
 			return ok && route.IsNative()
 		default:
 			return false
+		}
+	case dto.FilterChannelQuota:
+		// Only the requested model is blocked; the channel keeps serving its
+		// other models until their own gates are reached.
+		settings := ch.GetOtherSettings()
+		return !(&settings).ModelQuotaExceeded(modelName, time.Now())
+	case dto.FilterEndpointType:
+		// Only the OpenAI family is split by protocol: the plain OpenAI type
+		// serves chat completions and must not take Responses traffic, while the
+		// dedicated Responses type serves nothing else. Every other channel type
+		// keeps its existing conversion behavior.
+		switch filter.EndpointType {
+		case constant.EndpointTypeOpenAIResponse:
+			return ch.Type != constant.ChannelTypeOpenAI
+		case constant.EndpointTypeOpenAI:
+			return ch.Type != constant.ChannelTypeOpenAIResponses
+		default:
+			return true
 		}
 	default:
 		return true

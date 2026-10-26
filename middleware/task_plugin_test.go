@@ -2180,6 +2180,11 @@ func TestRouteTaskPluginEndpointUsesSelectedChannel(t *testing.T) {
 								t.Cleanup(func() { require.NoError(t, jsplugin.DefaultRegistry.Unregister(key)) })
 							}
 							ordinary := &model.Channel{Type: constant.ChannelTypeOpenAI, Status: common.ChannelStatusEnabled, Name: "ordinary", Key: "ordinary-key", Group: "route-test", Models: modelName, Priority: common.GetPointer(tc.ordinaryPriority + 1)}
+							// Responses traffic is served by the dedicated OpenAI Responses
+							// type; the plain OpenAI type only serves chat completions.
+							if path == "/v1/responses" {
+								ordinary.Type = constant.ChannelTypeOpenAIResponses
+							}
 							if tc.ordinaryType != 0 {
 								ordinary.Type = tc.ordinaryType
 							}
