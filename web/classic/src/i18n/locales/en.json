@@ -4479,6 +4479,9 @@
     "仅记录并用于成本展示，不影响用户计费；0 表示未配置": "Recorded for cost display only; user billing is unchanged. 0 means unset.",
     "模型上游倍率（JSON）": "Per-model upstream ratios (JSON)",
     "可选。按模型覆盖渠道默认上游倍率": "Optional. Overrides the channel default upstream ratio per model.",
-    "模型额度或上游倍率的 JSON 格式不正确": "Invalid JSON for model quotas or upstream ratios"
+    "模型额度或上游倍率的 JSON 格式不正确": "Invalid JSON for model quotas or upstream ratios",
+    "日用量": "Daily",
+    "周用量": "Weekly",
+    "总用量": "Total"
   }
 }

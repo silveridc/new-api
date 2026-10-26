@@ -2851,7 +2851,7 @@ const EditChannelModal = (props) => {
                       </Row>
                       <div className='mb-4 flex flex-wrap items-center gap-3 text-xs text-gray-500'>
                         <span>
-                          {t('已用（按用户扣费）')}：{t('日')} ${quotaUsage.daily.toFixed(4)} · {t('周')} ${quotaUsage.weekly.toFixed(4)} · {t('总')} ${quotaUsage.total.toFixed(4)}
+                          {t('已用（按用户扣费）')}：{t('日用量')} ${quotaUsage.daily.toFixed(4)} · {t('周用量')} ${quotaUsage.weekly.toFixed(4)} · {t('总用量')} ${quotaUsage.total.toFixed(4)}
                         </span>
                         {isEdit && (
                           <Button size='small' onClick={resetChannelQuota}>

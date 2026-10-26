@@ -3882,6 +3882,9 @@
     "仅记录并用于成本展示，不影响用户计费；0 表示未配置": "Enregistré uniquement pour l'affichage des coûts ; la facturation utilisateur reste inchangée. 0 signifie non défini.",
     "模型上游倍率（JSON）": "Ratios amont par modèle (JSON)",
     "可选。按模型覆盖渠道默认上游倍率": "Facultatif. Remplace le ratio amont par défaut du canal pour chaque modèle.",
-    "模型额度或上游倍率的 JSON 格式不正确": "JSON invalide pour les quotas ou ratios amont"
+    "模型额度或上游倍率的 JSON 格式不正确": "JSON invalide pour les quotas ou ratios amont",
+    "日用量": "Journalier",
+    "周用量": "Hebdomadaire",
+    "总用量": "Total"
   }
 }

@@ -4414,6 +4414,9 @@
     "仅记录并用于成本展示，不影响用户计费；0 表示未配置": "Chỉ ghi lại để hiển thị chi phí; không ảnh hưởng phí người dùng. 0 là chưa đặt.",
     "模型上游倍率（JSON）": "Tỷ lệ thượng nguồn theo model (JSON)",
     "可选。按模型覆盖渠道默认上游倍率": "Tùy chọn. Ghi đè tỷ lệ thượng nguồn mặc định của kênh theo model.",
-    "模型额度或上游倍率的 JSON 格式不正确": "JSON hạn mức hoặc tỷ lệ không hợp lệ"
+    "模型额度或上游倍率的 JSON 格式不正确": "JSON hạn mức hoặc tỷ lệ không hợp lệ",
+    "日用量": "Hàng ngày",
+    "周用量": "Hàng tuần",
+    "总用量": "Tổng"
   }
 }
