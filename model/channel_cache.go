@@ -307,3 +307,18 @@ func CacheUpdateChannel(channel *Channel) {
 	channelSyncLock.Unlock()
 	InvalidatePricingCache()
 }
+
+// CacheUpdateChannelOtherSettings refreshes only the settings JSON of a cached
+// channel. Quota accounting updates this field on every settled request, so it
+// must not replace the whole cached object and risk clobbering a concurrent
+// status change with a stale snapshot.
+func CacheUpdateChannelOtherSettings(channelId int, otherSettings string) {
+	if !common.MemoryCacheEnabled {
+		return
+	}
+	channelSyncLock.Lock()
+	defer channelSyncLock.Unlock()
+	if channel, ok := channelsIDM[channelId]; ok {
+		channel.OtherSettings = otherSettings
+	}
+}

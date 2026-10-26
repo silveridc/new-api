@@ -55,7 +55,7 @@ func AccumulateChannelQuotaUsage(channelId int, model string, amountUSD float64)
 		common.SysLog(common.LogText("failed to save channel quota usage: channel_id=%d, error=%v", channelId, err))
 		return
 	}
-	CacheUpdateChannel(channel)
+	CacheUpdateChannelOtherSettings(channelId, channel.OtherSettings)
 }
 
 // ResetChannelQuotaUsage clears the used amount (and window starts) while
@@ -84,7 +84,7 @@ func ResetChannelQuotaUsage(channelId int, model string) error {
 	if err := DB.Model(&Channel{}).Where("id = ?", channelId).Update("settings", channel.OtherSettings).Error; err != nil {
 		return err
 	}
-	CacheUpdateChannel(channel)
+	CacheUpdateChannelOtherSettings(channelId, channel.OtherSettings)
 	return nil
 }
 
