@@ -2325,6 +2325,76 @@ func OllamaVersion(c *gin.Context) {
 	})
 }
 
+// channelQuotaDimension is one window of a channel quota gate: the configured
+// limit, what users were charged inside the live window, and what is left.
+// Remaining is null when the limit is 0, which means that dimension is unlimited.
+type channelQuotaDimension struct {
+	Limit     float64  `json:"limit"`
+	Used      float64  `json:"used"`
+	Remaining *float64 `json:"remaining"`
+}
+
+// channelQuotaScope is the gate applied to one model, or to the channel itself
+// when Model is empty.
+type channelQuotaScope struct {
+	Model   string                `json:"model"`
+	Enabled bool                  `json:"enabled"`
+	Daily   channelQuotaDimension `json:"daily"`
+	Weekly  channelQuotaDimension `json:"weekly"`
+	Total   channelQuotaDimension `json:"total"`
+}
+
+func newChannelQuotaDimension(limit float64, used float64) channelQuotaDimension {
+	dimension := channelQuotaDimension{Limit: limit, Used: used}
+	if limit > 0 {
+		remaining := max(limit-used, 0)
+		dimension.Remaining = &remaining
+	}
+	return dimension
+}
+
+func newChannelQuotaScope(modelName string, limit *dto.ChannelQuotaLimit) channelQuotaScope {
+	if limit == nil {
+		return channelQuotaScope{Model: modelName}
+	}
+	daily, weekly, total := limit.UsedNow(time.Now())
+	return channelQuotaScope{
+		Model:   modelName,
+		Enabled: limit.Enabled,
+		Daily:   newChannelQuotaDimension(limit.DailyLimit, daily),
+		Weekly:  newChannelQuotaDimension(limit.WeeklyLimit, weekly),
+		Total:   newChannelQuotaDimension(limit.TotalLimit, total),
+	}
+}
+
+// GetChannelQuota reports the remaining amount of a channel's quota gate for the
+// channel itself and for every model override. Used amounts come from UsedNow, so
+// an expired rolling window already reads as zero.
+func GetChannelQuota(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		common.ApiErrorT(c, "Invalid parameters")
+		return
+	}
+	channel, err := model.GetChannelById(id, false)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	settings := channel.GetOtherSettings()
+	scopes := make([]channelQuotaScope, 0, len(settings.ModelQuotas)+1)
+	scopes = append(scopes, newChannelQuotaScope("", settings.Quota))
+	for i := range settings.ModelQuotas {
+		override := &settings.ModelQuotas[i]
+		scopes = append(scopes, newChannelQuotaScope(override.Model, &override.ChannelQuotaLimit))
+	}
+	common.ApiSuccess(c, gin.H{
+		"channel_id":   channel.Id,
+		"channel_name": channel.Name,
+		"scopes":       scopes,
+	})
+}
+
 // ResetChannelQuota clears the used amount of a channel's quota gate while
 // keeping the configured limits. A model in the body narrows the reset to that
 // model's override (or the channel gate when no override exists).

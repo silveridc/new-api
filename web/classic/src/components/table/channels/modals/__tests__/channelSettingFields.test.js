@@ -25,6 +25,8 @@ import {
   validateAdvancedCustomRaw,
   normalizeHttpProtocol,
   normalizeHttp2ConnectionShards,
+  formatModelQuotaOverrides,
+  parseModelQuotaOverrides,
   RESPONSES_WEBSOCKET_CHANNEL_TYPES,
   CHANNEL_TYPE_NEW_API,
   CHANNEL_TYPE_TASK_PLUGIN,
@@ -317,5 +319,96 @@ describe('渠道类型常量包含新版类型 58-63', () => {
       expect(RESPONSES_WEBSOCKET_CHANNEL_TYPES.has(type)).toBe(true);
     });
     expect(RESPONSES_WEBSOCKET_CHANNEL_TYPES.has(14)).toBe(false);
+  });
+});
+
+describe('parseModelQuotaOverrides：模型额度往返', () => {
+  const stored = [
+    {
+      model: 'gpt-4o',
+      enabled: true,
+      daily_limit: 10,
+      weekly_limit: 20,
+      total_limit: 100,
+      daily_used: 3.5,
+      daily_start: 1700000000,
+      weekly_used: 7,
+      weekly_start: 1699000000,
+      total_used: 42,
+      daily_reset_mode: 'fixed',
+      daily_reset_hour: 4,
+      reset_timezone: 'Asia/Shanghai',
+    },
+  ];
+
+  it('列出即启用：enabled 恒为 true，并保留后端累加的已用量与窗口', () => {
+    const text = formatModelQuotaOverrides(stored);
+    const list = parseModelQuotaOverrides(text, stored);
+
+    expect(list).toHaveLength(1);
+    expect(list[0]).toMatchObject({
+      model: 'gpt-4o',
+      enabled: true,
+      daily_limit: 10,
+      weekly_limit: 20,
+      total_limit: 100,
+      daily_used: 3.5,
+      daily_start: 1700000000,
+      weekly_used: 7,
+      weekly_start: 1699000000,
+      total_used: 42,
+      daily_reset_mode: 'fixed',
+      daily_reset_hour: 4,
+      reset_timezone: 'Asia/Shanghai',
+    });
+  });
+
+  it('编辑后的上限覆盖存量值，未出现在文本里的模型被移除', () => {
+    const list = parseModelQuotaOverrides(
+      JSON.stringify({
+        'gpt-4o': { daily_limit: 5, weekly_limit: 0, total_limit: 0 },
+      }),
+      stored,
+    );
+    expect(list[0].daily_limit).toBe(5);
+    expect(list[0].weekly_limit).toBe(0);
+    expect(list[0].total_used).toBe(42);
+
+    expect(
+      parseModelQuotaOverrides('{"claude-sonnet": {"total_limit": 1}}', stored),
+    ).toEqual([
+      {
+        model: 'claude-sonnet',
+        enabled: true,
+        daily_limit: 0,
+        weekly_limit: 0,
+        total_limit: 1,
+      },
+    ]);
+  });
+
+  it('无存量数据时按新建处理，非正数上限归零', () => {
+    expect(
+      parseModelQuotaOverrides(
+        '{"gpt-4o": {"daily_limit": -3, "total_limit": "8"}}',
+      ),
+    ).toEqual([
+      {
+        model: 'gpt-4o',
+        enabled: true,
+        daily_limit: 0,
+        weekly_limit: 0,
+        total_limit: 8,
+      },
+    ]);
+  });
+
+  it('空文本清空，非法 JSON 或非对象值抛错', () => {
+    expect(parseModelQuotaOverrides('  ', stored)).toEqual([]);
+    expect(() => parseModelQuotaOverrides('oops', stored)).toThrow();
+    expect(() => parseModelQuotaOverrides('[]', stored)).toThrow();
+    expect(() => parseModelQuotaOverrides('{"gpt-4o": 3}', stored)).toThrow(
+      'invalid model quota override for gpt-4o',
+    );
   });
 });

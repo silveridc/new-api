@@ -239,8 +239,12 @@ export function formatModelQuotaOverrides(list) {
 /**
  * 把编辑文本解析成后端需要的 model_quotas 数组；空文本返回空数组，
  * 非法 JSON 或非对象时抛出错误。
+ *
+ * 出现在这里的模型即表示该模型启用额度门槛，因此 enabled 恒为 true；
+ * 已用量与窗口起点由后端累加，不在编辑文本里，需要按模型从 previousList
+ * 带过来，否则保存一次渠道就会把已用量清零。
  */
-export function parseModelQuotaOverrides(rawStr) {
+export function parseModelQuotaOverrides(rawStr, previousList) {
   const raw = String(rawStr || '').trim();
   if (raw === '') {
     return [];
@@ -248,6 +252,12 @@ export function parseModelQuotaOverrides(rawStr) {
   const parsed = JSON.parse(raw);
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
     throw new Error('invalid model quota overrides');
+  }
+  const stored = new Map();
+  for (const entry of Array.isArray(previousList) ? previousList : []) {
+    if (entry && typeof entry.model === 'string' && entry.model.trim() !== '') {
+      stored.set(entry.model.trim(), entry);
+    }
   }
   const list = [];
   for (const [model, value] of Object.entries(parsed)) {
@@ -258,7 +268,17 @@ export function parseModelQuotaOverrides(rawStr) {
     if (!value || typeof value !== 'object' || Array.isArray(value)) {
       throw new Error('invalid model quota override for ' + name);
     }
-    list.push({ model: name, ...normalizeQuotaLimit(value) });
+    const {
+      model: _model,
+      enabled: _enabled,
+      ...kept
+    } = stored.get(name) || {};
+    list.push({
+      model: name,
+      ...kept,
+      enabled: true,
+      ...normalizeQuotaLimit(value),
+    });
   }
   return list;
 }

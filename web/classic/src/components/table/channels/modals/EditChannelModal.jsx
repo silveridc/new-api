@@ -83,6 +83,7 @@ import {
   parseModelUpstreamRatios,
 } from './channelSettingFields';
 import ChannelKeyDisplay from '../../../common/ui/ChannelKeyDisplay';
+import { openChannelQuotaModal } from './ChannelQuotaModal';
 import { useSecureVerification } from '../../../../hooks/common/useSecureVerification';
 import { parseChannelConnectionString } from '../../../../helpers/token';
 import { createApiCalls } from '../../../../services/secureVerification';
@@ -870,6 +871,20 @@ const EditChannelModal = (props) => {
     handleInputChange('param_override', '');
   };
 
+  // 已用量由后端按当前窗口计算，过期的滚动窗口在这里会回到 0
+  const refreshQuotaUsage = async () => {
+    const res = await API.get(`/api/channel/${channelId}/quota`);
+    const scope = res?.data?.data?.scopes?.find((item) => !item.model);
+    if (!scope) {
+      return;
+    }
+    setQuotaUsage({
+      daily: Number(scope.daily?.used) || 0,
+      weekly: Number(scope.weekly?.used) || 0,
+      total: Number(scope.total?.used) || 0,
+    });
+  };
+
   const resetChannelQuota = () => {
     if (!isEdit) {
       return;
@@ -880,7 +895,7 @@ const EditChannelModal = (props) => {
       onOk: async () => {
         const res = await API.post(`/api/channel/${channelId}/quota/reset`, {});
         if (res?.data?.success) {
-          setQuotaUsage({ daily: 0, weekly: 0, total: 0 });
+          await refreshQuotaUsage();
           showSuccess(t('额度用量已清零'));
         } else {
           showError(res?.data?.message || t('清零失败'));
@@ -996,6 +1011,7 @@ const EditChannelModal = (props) => {
             weekly: Number(quota.weekly_used) || 0,
             total: Number(quota.total_used) || 0,
           });
+          refreshQuotaUsage().catch(() => {});
           // 高级自定义渠道（58）：路由配置存放在 settings JSON 的
           // advanced_custom 字段（对象），编辑时序列化为字符串
           data.advanced_custom = parseAdvancedCustomFormValue(data.settings);
@@ -1999,6 +2015,7 @@ const EditChannelModal = (props) => {
     try {
       settings.model_quotas = parseModelQuotaOverrides(
         localInputs.quota_model_overrides,
+        originalSettingRef.current?.model_quotas,
       );
       settings.model_upstream_ratios = parseModelUpstreamRatios(
         localInputs.upstream_model_ratios,
@@ -2850,9 +2867,55 @@ const EditChannelModal = (props) => {
                         </Col>
                       </Row>
                       <div className='mb-4 flex flex-wrap items-center gap-3 text-xs text-gray-500'>
-                        <span>
-                          {t('已用（按用户扣费）')}：{t('日用量')} ${quotaUsage.daily.toFixed(4)} · {t('周用量')} ${quotaUsage.weekly.toFixed(4)} · {t('总用量')} ${quotaUsage.total.toFixed(4)}
-                        </span>
+                        <span>{t('已用（按用户扣费）')}</span>
+                        {[
+                          {
+                            label: t('日用量'),
+                            used: quotaUsage.daily,
+                            limit: Number(inputs.quota_daily_limit) || 0,
+                          },
+                          {
+                            label: t('周用量'),
+                            used: quotaUsage.weekly,
+                            limit: Number(inputs.quota_weekly_limit) || 0,
+                          },
+                          {
+                            label: t('总用量'),
+                            used: quotaUsage.total,
+                            limit: Number(inputs.quota_total_limit) || 0,
+                          },
+                        ].map((item) => (
+                          <span
+                            key={item.label}
+                            className='flex items-center gap-2'
+                          >
+                            <span>
+                              {item.label} ${item.used.toFixed(4)} /{' '}
+                              {item.limit > 0
+                                ? `$${item.limit.toFixed(4)}`
+                                : t('不限')}
+                            </span>
+                            {item.limit > 0 ? (
+                              <span>
+                                {t('剩余')} $
+                                {Math.max(item.limit - item.used, 0).toFixed(4)}
+                              </span>
+                            ) : null}
+                          </span>
+                        ))}
+                        {isEdit && (
+                          <Button
+                            size='small'
+                            onClick={() =>
+                              openChannelQuotaModal({
+                                t,
+                                record: { id: channelId, name: inputs.name },
+                              })
+                            }
+                          >
+                            {t('查看剩余额度')}
+                          </Button>
+                        )}
                         {isEdit && (
                           <Button size='small' onClick={resetChannelQuota}>
                             {t('重置额度用量')}

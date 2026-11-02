@@ -29,6 +29,7 @@ import type {
   Channel,
   ChannelBalanceResponse,
   ChannelOpsResponse,
+  ChannelQuotaResponse,
   ChannelTestResponse,
   CopyChannelParams,
   CopyChannelResponse,
@@ -157,6 +158,13 @@ export async function searchChannels(
  */
 export async function getChannel(id: number): Promise<GetChannelResponse> {
   const res = await api.get(`/api/channel/${id}`)
+  return res.data
+}
+
+export async function getChannelQuota(
+  channelId: number
+): Promise<ChannelQuotaResponse> {
+  const res = await api.get(`/api/channel/${channelId}/quota`)
   return res.data
 }
 

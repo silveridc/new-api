@@ -183,6 +183,33 @@ export interface GetChannelResponse {
   data?: Channel
 }
 
+/** One quota window: configured limit, live usage, and what is left. */
+export interface ChannelQuotaDimension {
+  limit: number
+  used: number
+  /** Null when the dimension has no limit. */
+  remaining: number | null
+}
+
+/** The quota gate for the channel itself (`model` empty) or one model override. */
+export interface ChannelQuotaScope {
+  model: string
+  enabled: boolean
+  daily: ChannelQuotaDimension
+  weekly: ChannelQuotaDimension
+  total: ChannelQuotaDimension
+}
+
+export interface ChannelQuotaResponse {
+  success: boolean
+  message?: string
+  data?: {
+    channel_id: number
+    channel_name: string
+    scopes: ChannelQuotaScope[]
+  }
+}
+
 export interface ChannelOpsResponse {
   success: boolean
   message?: string

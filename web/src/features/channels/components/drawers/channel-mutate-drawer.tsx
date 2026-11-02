@@ -118,6 +118,7 @@ import {
   parseChannelConnectionInfo,
   type ChannelConnectionInfo,
 } from '@/lib/channel-connection-info'
+import { formatCurrencyUSD } from '@/lib/format'
 import { handleServerError } from '@/lib/handle-server-error'
 import { ROLE } from '@/lib/roles'
 import {
@@ -132,6 +133,7 @@ import {
   getAllModels,
   getChannel,
   getChannelDefaultBaseURLs,
+  getChannelQuota,
   getGroups,
   getPrefillGroups,
   getTaskPluginOptions,
@@ -553,6 +555,20 @@ export function ChannelMutateDrawer({
     enabled: open && isEditing && Boolean(channelId),
     meta: { errorToast: false },
   })
+
+  // Remaining quota comes from the gateway, where an expired rolling window
+  // already counts as zero usage.
+  const { data: channelQuota } = useQuery({
+    queryKey: ['channel-quota', channelId],
+    queryFn: async () =>
+      requireServerSuccess(await getChannelQuota(channelId || 0)),
+    enabled: open && isEditing && Boolean(channelId),
+    meta: { errorToast: false },
+  })
+
+  const channelQuotaScope = channelQuota?.data?.scopes?.find(
+    (scope) => !scope.model
+  )
 
   // Fetch available groups
   const { data: groupsData, isLoading: isLoadingGroups } = useQuery({
@@ -2298,6 +2314,42 @@ export function ChannelMutateDrawer({
               )}
             />
           </div>
+          {channelQuotaScope ? (
+            <div className='text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-xs'>
+              {[
+                {
+                  label: t('Daily'),
+                  used: channelQuotaScope.daily.used,
+                  limit: Number(formValues.quota_daily_limit) || 0,
+                },
+                {
+                  label: t('Weekly'),
+                  used: channelQuotaScope.weekly.used,
+                  limit: Number(formValues.quota_weekly_limit) || 0,
+                },
+                {
+                  label: t('Total'),
+                  used: channelQuotaScope.total.used,
+                  limit: Number(formValues.quota_total_limit) || 0,
+                },
+              ].map((item) => (
+                <span key={item.label} className='flex items-center gap-2'>
+                  <span>
+                    {item.label}: {formatCurrencyUSD(item.used)} /{' '}
+                    {item.limit > 0
+                      ? formatCurrencyUSD(item.limit)
+                      : t('unlimited')}
+                  </span>
+                  {item.limit > 0 ? (
+                    <span>
+                      {t('remaining')}{' '}
+                      {formatCurrencyUSD(Math.max(item.limit - item.used, 0))}
+                    </span>
+                  ) : null}
+                </span>
+              ))}
+            </div>
+          ) : null}
           <div className='grid gap-4 sm:grid-cols-2'>
             <FormField
               control={form.control}
@@ -2394,7 +2446,9 @@ export function ChannelMutateDrawer({
                 name='quota_weekly_reset_day'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('Weekly reset day (0-6, 0=Sunday)')}</FormLabel>
+                    <FormLabel>
+                      {t('Weekly reset day (0-6, 0=Sunday)')}
+                    </FormLabel>
                     <FormControl>
                       <Input
                         type='number'
@@ -2442,7 +2496,10 @@ export function ChannelMutateDrawer({
                     { value: 'Asia/Tokyo', label: 'Asia/Tokyo' },
                     { value: 'Europe/London', label: 'Europe/London' },
                     { value: 'America/New_York', label: 'America/New_York' },
-                    { value: 'America/Los_Angeles', label: 'America/Los_Angeles' },
+                    {
+                      value: 'America/Los_Angeles',
+                      label: 'America/Los_Angeles',
+                    },
                   ]}
                   value={field.value || 'UTC'}
                   onValueChange={field.onChange}
@@ -2457,8 +2514,12 @@ export function ChannelMutateDrawer({
                     <SelectItem value='Asia/Shanghai'>Asia/Shanghai</SelectItem>
                     <SelectItem value='Asia/Tokyo'>Asia/Tokyo</SelectItem>
                     <SelectItem value='Europe/London'>Europe/London</SelectItem>
-                    <SelectItem value='America/New_York'>America/New_York</SelectItem>
-                    <SelectItem value='America/Los_Angeles'>America/Los_Angeles</SelectItem>
+                    <SelectItem value='America/New_York'>
+                      America/New_York
+                    </SelectItem>
+                    <SelectItem value='America/Los_Angeles'>
+                      America/Los_Angeles
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </FormItem>
@@ -2530,7 +2591,9 @@ export function ChannelMutateDrawer({
               />
             </FormControl>
             <FormDescription>
-              {t('Optional. Overrides the channel default upstream ratio per model.')}
+              {t(
+                'Optional. Overrides the channel default upstream ratio per model.'
+              )}
             </FormDescription>
             <FormMessage />
           </FormItem>

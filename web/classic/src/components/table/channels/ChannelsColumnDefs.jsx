@@ -44,6 +44,7 @@ import {
   MODEL_FETCHABLE_CHANNEL_TYPES,
 } from '../../../constants';
 import { parseUpstreamUpdateMeta } from '../../../hooks/channels/upstreamUpdateUtils';
+import { openChannelQuotaModal } from './modals/ChannelQuotaModal';
 import {
   IconTreeTriangleDown,
   IconMore,
@@ -270,6 +271,24 @@ const isRequestPassThroughEnabled = (record) => {
   try {
     const parsed = JSON.parse(settingValue);
     return parsed?.pass_through_body_enabled === true;
+  } catch (error) {
+    return false;
+  }
+};
+
+const hasChannelQuotaConfig = (record) => {
+  try {
+    const parsed = JSON.parse(record?.settings || '{}');
+    const modelQuotas = Array.isArray(parsed?.model_quotas)
+      ? parsed.model_quotas
+      : [];
+    // 只要配了上限就提供入口，门槛是否启用由弹窗自己标注
+    return [parsed?.quota, ...modelQuotas].some(
+      (item) =>
+        Number(item?.daily_limit) > 0 ||
+        Number(item?.weekly_limit) > 0 ||
+        Number(item?.total_limit) > 0,
+    );
   } catch (error) {
     return false;
   }
@@ -726,6 +745,15 @@ export const getChannelsColumns = ({
               },
             },
           ];
+
+          if (hasChannelQuotaConfig(record)) {
+            moreMenuItems.push({
+              node: 'item',
+              name: t('查看剩余额度'),
+              type: 'tertiary',
+              onClick: () => openChannelQuotaModal({ t, record }),
+            });
+          }
 
           if (upstreamUpdateMeta.supported) {
             moreMenuItems.push({

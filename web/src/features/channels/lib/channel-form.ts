@@ -139,6 +139,27 @@ function isOptionalModelMapping(value: string | undefined): boolean {
   }
 }
 
+function isOptionalValueMap(
+  value: string | undefined,
+  isValidValue: (item: unknown) => boolean
+): boolean {
+  try {
+    const parsed = parseOptionalJson(value)
+    if (parsed === undefined) return true
+    if (!isJsonObjectValue(parsed)) return false
+    return Object.values(parsed).every(isValidValue)
+  } catch {
+    return false
+  }
+}
+
+function isOptionalUpstreamRatioMap(value: string | undefined): boolean {
+  return isOptionalValueMap(
+    value,
+    (item) => typeof item === 'number' && Number.isFinite(item) && item >= 0
+  )
+}
+
 function isOptionalStatusCodeMapping(value: string | undefined): boolean {
   try {
     const parsed = parseOptionalJson(value)
@@ -305,12 +326,15 @@ export const channelFormSchema = z
     quota_model_overrides: z
       .string()
       .optional()
-      .refine(isOptionalJsonObject, ERROR_MESSAGES.INVALID_JSON),
+      .refine(
+        (value) => isOptionalValueMap(value, isJsonObjectValue),
+        ERROR_MESSAGES.INVALID_JSON
+      ),
     upstream_ratio: z.number().min(0).optional(),
     upstream_model_ratios: z
       .string()
       .optional()
-      .refine(isOptionalJsonObject, ERROR_MESSAGES.INVALID_JSON),
+      .refine(isOptionalUpstreamRatioMap, ERROR_MESSAGES.INVALID_JSON),
     // Upstream model update settings (stored in settings JSON)
     upstream_model_update_check_enabled: z.boolean().optional(),
     upstream_model_update_auto_sync_enabled: z.boolean().optional(),
@@ -471,19 +495,41 @@ function formatModelQuotaOverrides(raw: unknown): string {
   return Object.keys(map).length === 0 ? '' : JSON.stringify(map, null, 2)
 }
 
-function parseModelQuotaOverrides(raw?: string): Array<Record<string, unknown>> {
+function parseModelQuotaOverrides(
+  raw: string | undefined,
+  previousList?: unknown
+): Array<Record<string, unknown>> {
   const text = String(raw || '').trim()
   if (text === '') return []
   const parsed = JSON.parse(text)
   if (!isJsonObjectValue(parsed)) {
     throw new Error('invalid model quota overrides')
   }
+  // Listing a model here means its quota gate is on, and the usage counters the
+  // form does not edit have to come from the stored entry, otherwise saving the
+  // channel would zero them out.
+  const stored = new Map<string, Record<string, unknown>>()
+  for (const entry of Array.isArray(previousList) ? previousList : []) {
+    if (!isJsonObjectValue(entry)) continue
+    const model = String(entry.model || '').trim()
+    if (model) stored.set(model, entry)
+  }
   return Object.entries(parsed)
     .filter(([model]) => String(model).trim() !== '')
-    .map(([model, value]) => ({
-      model: String(model).trim(),
-      ...normalizeQuotaLimit(value),
-    }))
+    .map(([model, value]) => {
+      const name = String(model).trim()
+      const {
+        model: _previousModel,
+        enabled: _previousEnabled,
+        ...kept
+      } = stored.get(name) || {}
+      return {
+        model: name,
+        ...kept,
+        enabled: true,
+        ...normalizeQuotaLimit(value),
+      }
+    })
 }
 
 function formatModelUpstreamRatios(raw: unknown): string {
@@ -499,7 +545,9 @@ function formatModelUpstreamRatios(raw: unknown): string {
   return Object.keys(map).length === 0 ? '' : JSON.stringify(map, null, 2)
 }
 
-function parseModelUpstreamRatios(raw?: string): Array<Record<string, unknown>> {
+function parseModelUpstreamRatios(
+  raw?: string
+): Array<Record<string, unknown>> {
   const text = String(raw || '').trim()
   if (text === '') return []
   const parsed = JSON.parse(text)
@@ -721,7 +769,8 @@ export function transformChannelToFormDefaults(
       quotaDailyLimit = Number(quota.daily_limit) || 0
       quotaWeeklyLimit = Number(quota.weekly_limit) || 0
       quotaTotalLimit = Number(quota.total_limit) || 0
-      quotaDailyResetMode = quota.daily_reset_mode === 'fixed' ? 'fixed' : 'rolling'
+      quotaDailyResetMode =
+        quota.daily_reset_mode === 'fixed' ? 'fixed' : 'rolling'
       quotaDailyResetHour = Number(quota.daily_reset_hour) || 0
       quotaWeeklyResetMode =
         quota.weekly_reset_mode === 'fixed' ? 'fixed' : 'rolling'
@@ -908,6 +957,9 @@ function buildSettingsJSON(formData: ChannelFormValues): string {
   const previousQuota = isJsonObjectValue(settingsObj.quota)
     ? settingsObj.quota
     : {}
+  const previousModelQuotas = Array.isArray(settingsObj.model_quotas)
+    ? settingsObj.model_quotas
+    : []
   settingsObj.quota = {
     ...previousQuota,
     enabled: formData.quota_enabled === true,
@@ -922,7 +974,8 @@ function buildSettingsJSON(formData: ChannelFormValues): string {
     reset_timezone: formData.quota_reset_timezone || 'UTC',
   }
   settingsObj.model_quotas = parseModelQuotaOverrides(
-    formData.quota_model_overrides
+    formData.quota_model_overrides,
+    previousModelQuotas
   )
   settingsObj.upstream_ratio = formData.upstream_ratio || 0
   settingsObj.model_upstream_ratios = parseModelUpstreamRatios(
