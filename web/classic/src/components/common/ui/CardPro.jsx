@@ -19,7 +19,6 @@ For commercial licensing, please contact support@quantumnous.com
 
 import React, { useState } from 'react';
 import { Card, Divider, Typography, Button } from '@douyinfe/semi-ui';
-import PropTypes from 'prop-types';
 import { useIsMobile } from '../../../hooks/common/useIsMobile';
 import { IconEyeOpened, IconEyeClosed } from '@douyinfe/semi-icons';
 
@@ -171,30 +170,6 @@ const CardPro = ({
       {children}
     </Card>
   );
-};
-
-CardPro.propTypes = {
-  // 布局类型
-  type: PropTypes.oneOf(['type1', 'type2', 'type3']),
-  // 样式相关
-  className: PropTypes.string,
-  style: PropTypes.object,
-  shadows: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
-  bordered: PropTypes.bool,
-  // 内容区域
-  statsArea: PropTypes.node,
-  descriptionArea: PropTypes.node,
-  tabsArea: PropTypes.node,
-  actionsArea: PropTypes.oneOfType([
-    PropTypes.node,
-    PropTypes.arrayOf(PropTypes.node),
-  ]),
-  searchArea: PropTypes.node,
-  paginationArea: PropTypes.node,
-  // 表格内容
-  children: PropTypes.node,
-  // 国际化函数
-  t: PropTypes.func,
 };
 
 export default CardPro;

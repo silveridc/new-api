@@ -2,3 +2,14 @@ allowBuilds:
   '@parcel/watcher': true
   '@swc/core': true
   esbuild: true
+
+# vite-plugin-semi 把 semi-foundation / semi-icons 的 lib/es/**/*.css 里的
+# `~@douyinfe/semi-theme-default/scss/*.scss` 按“引用方所在 node_modules”解析，
+# 而这两个包自身没声明主题包依赖；pnpm 隔离布局下会解析不到。补声明后仍由 semi-ui 提供同版本。
+packageExtensions:
+  '@douyinfe/semi-foundation@*':
+    dependencies:
+      '@douyinfe/semi-theme-default': 2.104.0
+  '@douyinfe/semi-icons@*':
+    dependencies:
+      '@douyinfe/semi-theme-default': 2.104.0

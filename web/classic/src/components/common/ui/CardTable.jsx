@@ -29,7 +29,6 @@ import {
   Collapsible,
 } from '@douyinfe/semi-ui';
 import { IconChevronDown, IconChevronUp } from '@douyinfe/semi-icons';
-import PropTypes from 'prop-types';
 import { useIsMobile } from '../../../hooks/common/useIsMobile';
 import { useMinimumLoadingTime } from '../../../hooks/common/useMinimumLoadingTime';
 
@@ -229,14 +228,6 @@ const CardTable = ({
       )}
     </div>
   );
-};
-
-CardTable.propTypes = {
-  columns: PropTypes.array.isRequired,
-  dataSource: PropTypes.array,
-  loading: PropTypes.bool,
-  rowKey: PropTypes.oneOfType([PropTypes.string, PropTypes.func]),
-  hidePagination: PropTypes.bool,
 };
 
 export default CardTable;

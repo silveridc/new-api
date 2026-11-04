@@ -95,7 +95,9 @@ const rerenderElement = (element) => {
 const teardown = () => {
   if (root) {
     try {
-      root.unmount();
+      React.act(() => {
+        root.unmount();
+      });
     } catch (error) {
       // 已卸载忽略
     }

@@ -19,7 +19,6 @@ For commercial licensing, please contact support@quantumnous.com
 
 import React from 'react';
 import { Button } from '@douyinfe/semi-ui';
-import PropTypes from 'prop-types';
 import { useIsMobile } from '../../../hooks/common/useIsMobile';
 
 /**
@@ -54,15 +53,6 @@ const CompactModeToggle = ({
       {compactMode ? t('自适应列表') : t('紧凑列表')}
     </Button>
   );
-};
-
-CompactModeToggle.propTypes = {
-  compactMode: PropTypes.bool.isRequired,
-  setCompactMode: PropTypes.func.isRequired,
-  t: PropTypes.func.isRequired,
-  size: PropTypes.string,
-  type: PropTypes.string,
-  className: PropTypes.string,
 };
 
 export default CompactModeToggle;

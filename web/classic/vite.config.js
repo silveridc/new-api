@@ -28,6 +28,12 @@ const { vitePluginSemi } = pkg;
 export default defineConfig({
   resolve: {
     alias: {
+      // Semi 2.104 的 exports 白名单只放出 lib/es/_base/base.css（Design Token），
+      // 未放出唯一的全量组件样式 dist/css/semi.css，需按文件路径直接引用。
+      '@douyinfe/semi-ui/dist/css/semi.css': path.resolve(
+        __dirname,
+        'node_modules/@douyinfe/semi-ui/dist/css/semi.css'
+      ),
       '@': path.resolve(__dirname, 'src'),
     },
     dedupe: ['react', 'react-dom', 'i18next', 'react-i18next', 'axios', 'zustand'],
