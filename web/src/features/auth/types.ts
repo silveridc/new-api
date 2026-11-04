@@ -28,6 +28,7 @@ export interface LoginPayload {
   username: string
   password: string
   turnstile?: string
+  recaptcha?: string
   passwordEncryptionEnabled?: boolean
 }
 
@@ -43,16 +44,19 @@ export interface RegisterPayload {
   verification_code?: string
   aff_code?: string
   turnstile?: string
+  recaptcha?: string
 }
 
 export interface PasswordResetPayload {
   email: string
   turnstile?: string
+  recaptcha?: string
 }
 
 export interface EmailVerificationPayload {
   email: string
   turnstile?: string
+  recaptcha?: string
 }
 
 export interface BindEmailPayload {
@@ -117,6 +121,8 @@ export interface SystemStatus {
     WeChatAccountQRCodeImageURL?: string
     turnstile_check?: boolean
     turnstile_site_key?: string
+    recaptcha_check?: boolean
+    recaptcha_site_key?: string
     email_verification?: boolean
     self_use_mode_enabled?: boolean
     display_in_currency?: boolean
@@ -164,6 +170,8 @@ export interface SystemStatus {
   WeChatAccountQRCodeImageURL?: string
   turnstile_check?: boolean
   turnstile_site_key?: string
+  recaptcha_check?: boolean
+  recaptcha_site_key?: string
   email_verification?: boolean
   self_use_mode_enabled?: boolean
   display_in_currency?: boolean

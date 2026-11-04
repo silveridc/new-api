@@ -2227,7 +2227,6 @@ export function ChannelMutateDrawer({
     >
       <SubHeading
         title={t('Quota & Upstream Ratio')}
-        status={configuration.blocks.extraSettings}
         icon={<Gauge className='h-3.5 w-3.5' />}
         iconTone='chart-4'
       />

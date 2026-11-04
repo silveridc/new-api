@@ -621,7 +621,9 @@ test('without plugin binding permission only built-in providers are offered', ()
     },
   })
   render(<ConfigurationHarness />)
-  expect(screen.getByRole('option', { name: /^OpenAI / })).toBeVisible()
+  expect(
+    screen.getByRole('option', { name: /^OpenAI Built-in #/ })
+  ).toBeVisible()
   expect(
     screen.queryByRole('button', { name: 'Plugins' })
   ).not.toBeInTheDocument()
@@ -640,7 +642,9 @@ test('plugin loading failure can be retried while built-in providers remain sele
   })
   render(<ConfigurationHarness />)
   expect(await screen.findByText('Failed to load plugins')).toBeVisible()
-  expect(screen.getByRole('option', { name: /^OpenAI / })).toBeVisible()
+  expect(
+    screen.getByRole('option', { name: /^OpenAI Built-in #/ })
+  ).toBeVisible()
   await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
   expect(await screen.findByRole('option', { name: /Video A/ })).toBeVisible()
 })
@@ -1085,7 +1089,7 @@ test('model discovery discards a response for old credentials and retains manual
     })
   const user = userEvent.setup()
   render(<ConfigurationHarness />)
-  await user.click(screen.getByRole('option', { name: /^OpenAI / }))
+  await user.click(screen.getByRole('option', { name: /^OpenAI Built-in #/ }))
   fireEvent.change(screen.getByLabelText('API Key *'), {
     target: { value: 'first-key' },
   })
@@ -1122,7 +1126,7 @@ test('model discovery reports failures inline and allows an empty result to fall
     .mockResolvedValueOnce({ data: { success: true, data: [] } })
   const user = userEvent.setup()
   render(<ConfigurationHarness />)
-  await user.click(screen.getByRole('option', { name: /^OpenAI / }))
+  await user.click(screen.getByRole('option', { name: /^OpenAI Built-in #/ }))
   fireEvent.change(screen.getByLabelText('API Key *'), {
     target: { value: 'test-key' },
   })

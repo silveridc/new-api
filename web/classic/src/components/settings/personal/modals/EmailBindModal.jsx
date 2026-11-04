@@ -21,6 +21,7 @@ import React from 'react';
 import { Button, Input, Modal } from '@douyinfe/semi-ui';
 import { IconMail, IconKey } from '@douyinfe/semi-icons';
 import Turnstile from 'react-turnstile';
+import Recaptcha from '../../../common/ui/Recaptcha';
 
 const EmailBindModal = ({
   t,
@@ -36,6 +37,9 @@ const EmailBindModal = ({
   turnstileEnabled,
   turnstileSiteKey,
   setTurnstileToken,
+  recaptchaEnabled,
+  recaptchaSiteKey,
+  setRecaptchaToken,
 }) => {
   return (
     <Modal
@@ -96,6 +100,19 @@ const EmailBindModal = ({
               sitekey={turnstileSiteKey}
               onVerify={(token) => {
                 setTurnstileToken(token);
+              }}
+            />
+          </div>
+        )}
+        {recaptchaEnabled && (
+          <div className='flex justify-center'>
+            <Recaptcha
+              siteKey={recaptchaSiteKey}
+              onVerify={(token) => {
+                setRecaptchaToken(token);
+              }}
+              onExpire={() => {
+                setRecaptchaToken('');
               }}
             />
           </div>

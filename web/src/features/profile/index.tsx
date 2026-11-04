@@ -41,6 +41,10 @@ export function Profile() {
     status?.turnstile_check && status?.turnstile_site_key
   )
   const turnstileSiteKey = status?.turnstile_site_key || ''
+  const recaptchaEnabled = !!(
+    status?.recaptcha_check && status?.recaptcha_site_key
+  )
+  const recaptchaSiteKey = status?.recaptcha_site_key || ''
   const canConfigureSidebar = permissions?.sidebar_settings !== false
   // Older cached status payloads lack these fields; the site default is on.
   const quotaRemindEnabled = status?.quota_remind_enabled !== false
@@ -76,6 +80,8 @@ export function Profile() {
                     checkinEnabled={checkinEnabled}
                     turnstileEnabled={turnstileEnabled}
                     turnstileSiteKey={turnstileSiteKey}
+                    recaptchaEnabled={recaptchaEnabled}
+                    recaptchaSiteKey={recaptchaSiteKey}
                   />
                 )}
                 {canConfigureSidebar && <SidebarModulesCard />}

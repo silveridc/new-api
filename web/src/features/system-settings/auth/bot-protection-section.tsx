@@ -47,6 +47,9 @@ const botProtectionSchema = z.object({
   TurnstileCheckEnabled: z.boolean(),
   TurnstileSiteKey: z.string().optional(),
   TurnstileSecretKey: z.string().optional(),
+  RecaptchaCheckEnabled: z.boolean(),
+  RecaptchaSiteKey: z.string().optional(),
+  RecaptchaSecretKey: z.string().optional(),
 })
 
 type BotProtectionFormValues = z.infer<typeof botProtectionSchema>
@@ -75,15 +78,21 @@ export function BotProtectionSection({
       ([key, value]) =>
         value !== defaultValues[key as keyof BotProtectionFormValues]
     )
-    const turnstileEnableUpdate = updates.find(
-      ([key, value]) => key === 'TurnstileCheckEnabled' && value === true
+    // 后端在密钥为空时会拒绝开启校验，所以开启开关的更新必须排在密钥之后
+    const enableUpdates = updates.filter(
+      ([key, value]) =>
+        (key === 'TurnstileCheckEnabled' || key === 'RecaptchaCheckEnabled') &&
+        value === true
     )
-    const orderedUpdates = turnstileEnableUpdate
-      ? [
-          ...updates.filter(([key]) => key !== 'TurnstileCheckEnabled'),
-          turnstileEnableUpdate,
-        ]
-      : updates
+    const orderedUpdates =
+      enableUpdates.length > 0
+        ? [
+            ...updates.filter(
+              ([key]) => !enableUpdates.some(([name]) => name === key)
+            ),
+            ...enableUpdates,
+          ]
+        : updates
 
     for (const [key, value] of orderedUpdates) {
       await updateOption.mutateAsync({ key, value: value ?? '' })
@@ -149,6 +158,64 @@ export function BotProtectionSection({
                   <Input
                     type='password'
                     placeholder={t('Your Turnstile secret key')}
+                    autoComplete='new-password'
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name='RecaptchaCheckEnabled'
+            render={({ field }) => (
+              <SettingsSwitchItem>
+                <SettingsSwitchContent>
+                  <FormLabel>{t('Enable reCAPTCHA')}</FormLabel>
+                  <FormDescription>
+                    {t('Protect login and registration with Google reCAPTCHA')}
+                  </FormDescription>
+                </SettingsSwitchContent>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+              </SettingsSwitchItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name='RecaptchaSiteKey'
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('Site Key')}</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder={t('Your reCAPTCHA site key')}
+                    autoComplete='off'
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name='RecaptchaSecretKey'
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('Secret Key')}</FormLabel>
+                <FormControl>
+                  <Input
+                    type='password'
+                    placeholder={t('Your reCAPTCHA secret key')}
                     autoComplete='new-password'
                     {...field}
                   />

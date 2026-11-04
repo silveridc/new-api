@@ -24,6 +24,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import type { z } from 'zod'
 
+import { Recaptcha } from '@/components/recaptcha'
 import { Turnstile } from '@/components/turnstile'
 import { Button } from '@/components/ui/button'
 import {
@@ -40,6 +41,7 @@ import {
   forgotPasswordFormSchema,
   PASSWORD_RESET_COUNTDOWN,
 } from '@/features/auth/constants'
+import { useRecaptcha } from '@/features/auth/hooks/use-recaptcha'
 import { useTurnstile } from '@/features/auth/hooks/use-turnstile'
 import { useCountdown } from '@/hooks/use-countdown'
 import { handleServerError } from '@/lib/handle-server-error'
@@ -53,6 +55,7 @@ export function ForgotPasswordForm({
 }: React.HTMLAttributes<HTMLFormElement>) {
   const { t } = useTranslation()
   const [isLoading, setIsLoading] = useState(false)
+  const [recaptchaWidgetKey, setRecaptchaWidgetKey] = useState(0)
 
   const {
     isTurnstileEnabled,
@@ -61,6 +64,13 @@ export function ForgotPasswordForm({
     setTurnstileToken,
     validateTurnstile,
   } = useTurnstile()
+  const {
+    isRecaptchaEnabled,
+    recaptchaSiteKey,
+    recaptchaToken,
+    setRecaptchaToken,
+    validateRecaptcha,
+  } = useRecaptcha()
   const {
     secondsLeft,
     isActive,
@@ -71,18 +81,30 @@ export function ForgotPasswordForm({
     resolver: zodResolver(forgotPasswordFormSchema),
     defaultValues: { email: '' },
   })
-  const turnstileReady = !isTurnstileEnabled || Boolean(turnstileToken)
+  const captchaReady =
+    (!isTurnstileEnabled || Boolean(turnstileToken)) &&
+    (!isRecaptchaEnabled || Boolean(recaptchaToken))
 
   async function onSubmit(data: z.infer<typeof forgotPasswordFormSchema>) {
     if (!validateTurnstile()) return
+    if (!validateRecaptcha()) return
 
     setIsLoading(true)
     try {
-      const res = await sendPasswordResetEmail(data.email, turnstileToken)
+      const res = await sendPasswordResetEmail(
+        data.email,
+        turnstileToken,
+        recaptchaToken
+      )
       if (res?.success) {
         form.reset()
         startCountdown()
         toast.success(t('Reset email sent, please check your inbox'))
+        if (isRecaptchaEnabled) {
+          // reCAPTCHA token 只能用一次，发送成功后需要重新验证
+          setRecaptchaToken('')
+          setRecaptchaWidgetKey((current) => current + 1)
+        }
       } else {
         handleServerError(
           createServerError(res, t('Failed to send reset email'))
@@ -121,7 +143,7 @@ export function ForgotPasswordForm({
         <Button
           type='submit'
           className='mt-2'
-          disabled={isLoading || isActive || !turnstileReady}
+          disabled={isLoading || isActive || !captchaReady}
         >
           {isActive
             ? t('Resend ({{seconds}}s)', { seconds: secondsLeft })
@@ -134,6 +156,17 @@ export function ForgotPasswordForm({
             <Turnstile
               siteKey={turnstileSiteKey}
               onVerify={setTurnstileToken}
+            />
+          </div>
+        )}
+
+        {isRecaptchaEnabled && (
+          <div className='mt-2'>
+            <Recaptcha
+              key={recaptchaWidgetKey}
+              siteKey={recaptchaSiteKey}
+              onVerify={setRecaptchaToken}
+              onExpire={() => setRecaptchaToken('')}
             />
           </div>
         )}

@@ -30,6 +30,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Dialog } from '@/components/dialog'
+import { Recaptcha } from '@/components/recaptcha'
 import { Turnstile } from '@/components/turnstile'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -54,12 +55,23 @@ interface CheckinCalendarCardProps {
   checkinEnabled: boolean
   turnstileEnabled: boolean
   turnstileSiteKey: string
+  recaptchaEnabled: boolean
+  recaptchaSiteKey: string
 }
+
+interface CaptchaTokens {
+  turnstile: string
+  recaptcha: string
+}
+
+const EMPTY_TOKENS: CaptchaTokens = { turnstile: '', recaptcha: '' }
 
 export function CheckinCalendarCard({
   checkinEnabled,
   turnstileEnabled,
   turnstileSiteKey,
+  recaptchaEnabled,
+  recaptchaSiteKey,
 }: CheckinCalendarCardProps) {
   const { t } = useTranslation()
   const [currentMonth, setCurrentMonth] = useState(() => {
@@ -67,8 +79,10 @@ export function CheckinCalendarCard({
     return new Date(now.getFullYear(), now.getMonth(), 1)
   })
   const [checkinLoading, setCheckinLoading] = useState(false)
-  const [turnstileModalVisible, setTurnstileModalVisible] = useState(false)
-  const [turnstileWidgetKey, setTurnstileWidgetKey] = useState(0)
+  const [captchaModalVisible, setCaptchaModalVisible] = useState(false)
+  const [captchaWidgetKey, setCaptchaWidgetKey] = useState(0)
+  const [captchaTokens, setCaptchaTokens] =
+    useState<CaptchaTokens>(EMPTY_TOKENS)
   const [initialLoaded, setInitialLoaded] = useState(false)
   const [collapsed, setCollapsed] = useState<boolean>(false)
 
@@ -131,37 +145,41 @@ export function CheckinCalendarCard({
     setInitialLoaded(true)
   }, [checkinData, checkedToday, initialLoaded, isLoading])
 
-  const shouldTriggerTurnstile = useCallback(
+  const captchaEnabled = turnstileEnabled || recaptchaEnabled
+
+  const shouldTriggerCaptcha = useCallback(
     (message?: string) => {
-      if (!turnstileEnabled) return false
+      if (!captchaEnabled) return false
       if (typeof message !== 'string') return true
-      return message.includes('Turnstile')
+      return message.includes('Turnstile') || message.includes('reCAPTCHA')
     },
-    [turnstileEnabled]
+    [captchaEnabled]
   )
 
   const doCheckin = useCallback(
-    async (token?: string) => {
+    async (tokens: CaptchaTokens = EMPTY_TOKENS) => {
       setCheckinLoading(true)
       try {
-        const res = await performCheckin(token)
+        const res = await performCheckin(tokens.turnstile, tokens.recaptcha)
         if (res.success && res.data) {
           toast.success(
             `${t('Check-in successful! Received')} ${formatQuotaWithCurrency(res.data.quota_awarded)}`
           )
           refetch()
-          setTurnstileModalVisible(false)
+          setCaptchaModalVisible(false)
         } else {
-          if (!token && shouldTriggerTurnstile(res.message)) {
-            if (!turnstileSiteKey) {
+          const hasToken = tokens.turnstile !== '' || tokens.recaptcha !== ''
+          if (!hasToken && shouldTriggerCaptcha(res.message)) {
+            if (!turnstileSiteKey && !recaptchaSiteKey) {
               toast.error(t('Turnstile is enabled but site key is empty.'))
               return
             }
-            setTurnstileModalVisible(true)
+            setCaptchaTokens(EMPTY_TOKENS)
+            setCaptchaModalVisible(true)
             return
           }
-          if (token && shouldTriggerTurnstile(res.message)) {
-            setTurnstileWidgetKey((v) => v + 1)
+          if (hasToken && shouldTriggerCaptcha(res.message)) {
+            setCaptchaWidgetKey((v) => v + 1)
           }
           handleServerError(res, t('Check-in failed'))
         }
@@ -171,7 +189,20 @@ export function CheckinCalendarCard({
         setCheckinLoading(false)
       }
     },
-    [refetch, shouldTriggerTurnstile, t, turnstileSiteKey]
+    [recaptchaSiteKey, refetch, shouldTriggerCaptcha, t, turnstileSiteKey]
+  )
+
+  // 两个校验厂商可以同时开启，需要收齐所有已开启厂商的 token 才能提交
+  const submitWithTokens = useCallback(
+    (tokens: CaptchaTokens) => {
+      setCaptchaTokens(tokens)
+      const waitingForTurnstile = turnstileEnabled && tokens.turnstile === ''
+      const waitingForRecaptcha = recaptchaEnabled && tokens.recaptcha === ''
+      if (!waitingForTurnstile && !waitingForRecaptcha) {
+        doCheckin(tokens)
+      }
+    },
+    [doCheckin, recaptchaEnabled, turnstileEnabled]
   )
 
   const handlePrevMonth = () => {
@@ -254,11 +285,11 @@ export function CheckinCalendarCard({
   return (
     <TooltipProvider delay={100}>
       <Dialog
-        open={turnstileModalVisible}
+        open={captchaModalVisible}
         onOpenChange={(open) => {
-          setTurnstileModalVisible(open)
+          setCaptchaModalVisible(open)
           if (!open) {
-            setTurnstileWidgetKey((v) => v + 1)
+            setCaptchaWidgetKey((v) => v + 1)
           }
         }}
         title={t('Security Check')}
@@ -269,18 +300,34 @@ export function CheckinCalendarCard({
         <div className='text-muted-foreground text-sm'>
           {t('Please complete the security check to continue.')}
         </div>
-        <div className='flex justify-center py-4'>
-          <Turnstile
-            key={turnstileWidgetKey}
-            siteKey={turnstileSiteKey}
-            onVerify={(token) => {
-              doCheckin(token)
-            }}
-            onExpire={() => {
-              setTurnstileWidgetKey((v) => v + 1)
-            }}
-          />
-        </div>
+        {turnstileEnabled && (
+          <div className='flex justify-center'>
+            <Turnstile
+              key={`turnstile-${captchaWidgetKey}`}
+              siteKey={turnstileSiteKey}
+              onVerify={(token) => {
+                submitWithTokens({ ...captchaTokens, turnstile: token })
+              }}
+              onExpire={() => {
+                setCaptchaWidgetKey((v) => v + 1)
+              }}
+            />
+          </div>
+        )}
+        {recaptchaEnabled && (
+          <div className='flex justify-center'>
+            <Recaptcha
+              key={`recaptcha-${captchaWidgetKey}`}
+              siteKey={recaptchaSiteKey}
+              onVerify={(token) => {
+                submitWithTokens({ ...captchaTokens, recaptcha: token })
+              }}
+              onExpire={() => {
+                setCaptchaWidgetKey((v) => v + 1)
+              }}
+            />
+          </div>
+        )}
       </Dialog>
 
       <Card data-card-hover='false' className='gap-0 overflow-hidden py-0'>

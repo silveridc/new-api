@@ -111,6 +111,9 @@ const AUTH_SECTIONS = [
           TurnstileCheckEnabled: settings.TurnstileCheckEnabled,
           TurnstileSiteKey: settings.TurnstileSiteKey,
           TurnstileSecretKey: settings.TurnstileSecretKey,
+          RecaptchaCheckEnabled: settings.RecaptchaCheckEnabled,
+          RecaptchaSiteKey: settings.RecaptchaSiteKey,
+          RecaptchaSecretKey: settings.RecaptchaSecretKey,
         }}
       />
     ),

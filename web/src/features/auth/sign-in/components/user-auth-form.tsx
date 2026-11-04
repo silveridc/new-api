@@ -27,6 +27,7 @@ import type { z } from 'zod'
 
 import { Dialog } from '@/components/dialog'
 import { PasswordInput } from '@/components/password-input'
+import { Recaptcha } from '@/components/recaptcha'
 import { Turnstile } from '@/components/turnstile'
 import { Button } from '@/components/ui/button'
 import {
@@ -44,6 +45,7 @@ import { LegalConsent } from '@/features/auth/components/legal-consent'
 import { OAuthProviders } from '@/features/auth/components/oauth-providers'
 import { loginFormSchema } from '@/features/auth/constants'
 import { useAuthRedirect } from '@/features/auth/hooks/use-auth-redirect'
+import { useRecaptcha } from '@/features/auth/hooks/use-recaptcha'
 import { useTurnstile } from '@/features/auth/hooks/use-turnstile'
 import { beginPasskeyLogin, finishPasskeyLogin } from '@/features/auth/passkey'
 import {
@@ -80,6 +82,7 @@ export function UserAuthForm({
   const [isWeChatDialogOpen, setIsWeChatDialogOpen] = useState(false)
   const [isWeChatSubmitting, setIsWeChatSubmitting] = useState(false)
   const [turnstileWidgetKey, setTurnstileWidgetKey] = useState(0)
+  const [recaptchaWidgetKey, setRecaptchaWidgetKey] = useState(0)
   const legalConsentErrorMessage = t('Please agree to the legal terms first')
   const loginFailedMessage = t('Login failed')
 
@@ -102,6 +105,13 @@ export function UserAuthForm({
     setTurnstileToken,
     validateTurnstile,
   } = useTurnstile()
+  const {
+    isRecaptchaEnabled,
+    recaptchaSiteKey,
+    recaptchaToken,
+    setRecaptchaToken,
+    validateRecaptcha,
+  } = useRecaptcha()
   const { handleLoginResult } = useAuthRedirect()
 
   const hasUserAgreement = Boolean(status?.user_agreement_enabled)
@@ -166,11 +176,17 @@ export function UserAuthForm({
     }
 
     if (!validateTurnstile()) return
+    if (!validateRecaptcha()) return
 
     const submittedTurnstileToken = turnstileToken
     if (isTurnstileEnabled) {
       setTurnstileToken('')
       setTurnstileWidgetKey((current) => current + 1)
+    }
+    const submittedRecaptchaToken = recaptchaToken
+    if (isRecaptchaEnabled) {
+      setRecaptchaToken('')
+      setRecaptchaWidgetKey((current) => current + 1)
     }
 
     setIsLoading(true)
@@ -179,6 +195,7 @@ export function UserAuthForm({
         username: data.username,
         password: data.password,
         turnstile: submittedTurnstileToken,
+        recaptcha: submittedRecaptchaToken,
         passwordEncryptionEnabled: passwordLoginEncryptionEnabled,
       })
 
@@ -413,6 +430,18 @@ export function UserAuthForm({
                   siteKey={turnstileSiteKey}
                   onVerify={setTurnstileToken}
                   onExpire={() => setTurnstileToken('')}
+                />
+              </div>
+            )}
+
+            {/* reCAPTCHA */}
+            {isRecaptchaEnabled && (
+              <div className='mt-2'>
+                <Recaptcha
+                  key={recaptchaWidgetKey}
+                  siteKey={recaptchaSiteKey}
+                  onVerify={setRecaptchaToken}
+                  onExpire={() => setRecaptchaToken('')}
                 />
               </div>
             )}

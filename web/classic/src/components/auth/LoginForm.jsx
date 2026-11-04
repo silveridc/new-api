@@ -45,6 +45,7 @@ import {
   storeUserProfile,
 } from '../../helpers/authSession';
 import Turnstile from 'react-turnstile';
+import Recaptcha from '../common/ui/Recaptcha';
 import {
   Button,
   Card,
@@ -92,6 +93,9 @@ const LoginForm = () => {
   const [turnstileEnabled, setTurnstileEnabled] = useState(false);
   const [turnstileSiteKey, setTurnstileSiteKey] = useState('');
   const [turnstileToken, setTurnstileToken] = useState('');
+  const [recaptchaEnabled, setRecaptchaEnabled] = useState(false);
+  const [recaptchaSiteKey, setRecaptchaSiteKey] = useState('');
+  const [recaptchaToken, setRecaptchaToken] = useState('');
   const [showWeChatLoginModal, setShowWeChatLoginModal] = useState(false);
   const [showEmailLogin, setShowEmailLogin] = useState(false);
   const [wechatLoading, setWechatLoading] = useState(false);
@@ -153,6 +157,10 @@ const LoginForm = () => {
       setTurnstileEnabled(true);
       setTurnstileSiteKey(status.turnstile_site_key);
     }
+    if (status?.recaptcha_check) {
+      setRecaptchaEnabled(true);
+      setRecaptchaSiteKey(status.recaptcha_site_key);
+    }
 
     // 从 status 获取用户协议和隐私政策的启用状态
     setHasUserAgreement(status?.user_agreement_enabled || false);
@@ -190,6 +198,10 @@ const LoginForm = () => {
   const onSubmitWeChatVerificationCode = async () => {
     if (turnstileEnabled && turnstileToken === '') {
       showInfo('请稍后几秒重试，Turnstile 正在检查用户环境！');
+      return;
+    }
+    if (recaptchaEnabled && recaptchaToken === '') {
+      showInfo(t('请稍后几秒重试，reCAPTCHA 正在检查用户环境！'));
       return;
     }
     setWechatCodeSubmitLoading(true);
@@ -230,12 +242,16 @@ const LoginForm = () => {
       showInfo('请稍后几秒重试，Turnstile 正在检查用户环境！');
       return;
     }
+    if (recaptchaEnabled && recaptchaToken === '') {
+      showInfo(t('请稍后几秒重试，reCAPTCHA 正在检查用户环境！'));
+      return;
+    }
     setSubmitted(true);
     setLoginLoading(true);
     try {
       if (username && password) {
         const res = await API.post(
-          `/api/user/login?turnstile=${turnstileToken}`,
+          `/api/user/login?turnstile=${turnstileToken}&recaptcha=${recaptchaToken}`,
           {
             username,
             password,
@@ -981,6 +997,19 @@ const LoginForm = () => {
               sitekey={turnstileSiteKey}
               onVerify={(token) => {
                 setTurnstileToken(token);
+              }}
+            />
+          </div>
+        )}
+        {recaptchaEnabled && (
+          <div className='flex justify-center mt-6'>
+            <Recaptcha
+              siteKey={recaptchaSiteKey}
+              onVerify={(token) => {
+                setRecaptchaToken(token);
+              }}
+              onExpire={() => {
+                setRecaptchaToken('');
               }}
             />
           </div>

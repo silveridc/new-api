@@ -253,6 +253,11 @@ func UpdateOption(c *gin.Context) {
 			common.ApiErrorT(c, "Cannot enable Turnstile verification. Enter the Turnstile settings first.")
 			return
 		}
+	case "RecaptchaCheckEnabled":
+		if option.Value == "true" && (common.RecaptchaSiteKey == "" || common.RecaptchaSecretKey == "") {
+			common.ApiErrorT(c, "Cannot enable reCAPTCHA verification. Enter the reCAPTCHA settings first.")
+			return
+		}
 	case "TelegramOAuthEnabled":
 		if option.Value == "true" && !system_setting.GetTelegramSettings().IsConfigured() {
 			c.JSON(http.StatusOK, gin.H{

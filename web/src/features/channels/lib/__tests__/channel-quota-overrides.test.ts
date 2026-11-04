@@ -77,7 +77,7 @@ describe('channel quota model overrides', () => {
     )
     const form = transformChannelToFormDefaults(channel)
 
-    expect(JSON.parse(form.quota_model_overrides)).toEqual({
+    expect(JSON.parse(form.quota_model_overrides ?? '')).toEqual({
       'gpt-4o': { daily_limit: 10, weekly_limit: 20, total_limit: 100 },
     })
 

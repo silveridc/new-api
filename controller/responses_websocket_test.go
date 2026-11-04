@@ -187,6 +187,7 @@ func TestResponsesWSRequestRunnerRefreshesBillingContextAndCleansBody(t *testing
 }
 
 func TestResponsesWSRequestRunnerRejectsRevokedCredentials(t *testing.T) {
+	require.NoError(t, i18n.Init())
 	for _, tc := range []struct {
 		name   string
 		status int

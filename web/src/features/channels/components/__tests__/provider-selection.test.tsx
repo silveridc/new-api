@@ -802,7 +802,9 @@ test('built-in and plugin providers with the same name remain distinct and plugi
       onSelect={select}
     />
   )
-  expect(screen.getAllByRole('option', { name: /^OpenAI / })).toHaveLength(2)
+  expect(
+    screen.getAllByRole('option', { name: /^OpenAI (Built-in|Plugin)/ })
+  ).toHaveLength(2)
   expect(
     screen.getByRole('option', { name: 'OpenAI Built-in #1' })
   ).toHaveAttribute('aria-current', 'true')

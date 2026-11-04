@@ -49,8 +49,8 @@ func SetApiRouter(router *gin.Engine) {
 		// 放在 CriticalRateLimit 之前：后者与登录/注册共享同一份 IP 预算，被拒时
 		// 只返回空体 429；发信限流先给出带等待秒数的可读提示，且被拒的请求不再
 		// 消耗那份共享预算。
-		apiRouter.GET("/verification", middleware.EmailSendRateLimit("email"), middleware.EmailVerificationRateLimit(), middleware.TurnstileCheck(), controller.SendEmailVerification)
-		apiRouter.GET("/reset_password", middleware.EmailSendRateLimit("email"), middleware.CriticalRateLimit(), middleware.TurnstileCheck(), controller.SendPasswordResetEmail)
+		apiRouter.GET("/verification", middleware.EmailSendRateLimit("email"), middleware.EmailVerificationRateLimit(), middleware.TurnstileCheck(), middleware.RecaptchaCheck(), controller.SendEmailVerification)
+		apiRouter.GET("/reset_password", middleware.EmailSendRateLimit("email"), middleware.CriticalRateLimit(), middleware.TurnstileCheck(), middleware.RecaptchaCheck(), controller.SendPasswordResetEmail)
 		apiRouter.POST("/user/reset", middleware.CriticalRateLimit(), anonymousRequestBodyLimit, controller.ResetPassword)
 		// OAuth routes - specific routes must come before :provider wildcard
 		apiRouter.POST("/oauth/state", middleware.CriticalRateLimit(), middleware.DisableCache(), middleware.TryUserAuth(), anonymousRequestBodyLimit, controller.GenerateOAuthCode)
@@ -82,9 +82,9 @@ func SetApiRouter(router *gin.Engine) {
 		{
 			userRoute.POST("/auth/refresh", middleware.SessionCookieOriginGuard(), middleware.AuthRefreshRateLimit(), middleware.DisableCache(), controller.RefreshAuth)
 			userRoute.POST("/auth/logout", middleware.SessionCookieOriginGuard(), middleware.CriticalRateLimit(), middleware.DisableCache(), controller.AuthLogout)
-			userRoute.POST("/register", middleware.CriticalRateLimit(), anonymousRequestBodyLimit, middleware.TurnstileCheck(), controller.Register)
+			userRoute.POST("/register", middleware.CriticalRateLimit(), anonymousRequestBodyLimit, middleware.TurnstileCheck(), middleware.RecaptchaCheck(), controller.Register)
 			userRoute.GET("/login/encryption-key", middleware.DisableCache(), controller.GetPasswordEncryptionKey)
-			userRoute.POST("/login", middleware.CriticalRateLimit(), middleware.DisableCache(), anonymousRequestBodyLimit, middleware.TurnstileCheck(), controller.Login)
+			userRoute.POST("/login", middleware.CriticalRateLimit(), middleware.DisableCache(), anonymousRequestBodyLimit, middleware.TurnstileCheck(), middleware.RecaptchaCheck(), controller.Login)
 			userRoute.POST("/login/2fa", middleware.CriticalRateLimit(), middleware.DisableCache(), anonymousRequestBodyLimit, controller.Verify2FALogin)
 			userRoute.POST("/login/verify", middleware.CriticalRateLimit(), middleware.DisableCache(), anonymousRequestBodyLimit, controller.VerifyLogin)
 			userRoute.POST("/login/passkey/begin", middleware.CriticalRateLimit(), middleware.DisableCache(), anonymousRequestBodyLimit, controller.LoginPasskeyBegin)
@@ -149,7 +149,7 @@ func SetApiRouter(router *gin.Engine) {
 
 				// Check-in routes
 				selfRoute.GET("/checkin", controller.GetCheckinStatus)
-				selfRoute.POST("/checkin", middleware.TurnstileCheck(), controller.DoCheckin)
+				selfRoute.POST("/checkin", middleware.TurnstileCheck(), middleware.RecaptchaCheck(), controller.DoCheckin)
 
 				// Custom OAuth bindings
 				selfRoute.GET("/oauth/bindings", controller.GetUserOAuthBindings)

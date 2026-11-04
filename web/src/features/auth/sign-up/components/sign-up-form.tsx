@@ -26,6 +26,7 @@ import type { z } from 'zod'
 
 import { Dialog } from '@/components/dialog'
 import { PasswordInput } from '@/components/password-input'
+import { Recaptcha } from '@/components/recaptcha'
 import { Turnstile } from '@/components/turnstile'
 import { Button } from '@/components/ui/button'
 import {
@@ -44,6 +45,7 @@ import { OAuthProviders } from '@/features/auth/components/oauth-providers'
 import { registerFormSchema } from '@/features/auth/constants'
 import { useAuthRedirect } from '@/features/auth/hooks/use-auth-redirect'
 import { useEmailVerification } from '@/features/auth/hooks/use-email-verification'
+import { useRecaptcha } from '@/features/auth/hooks/use-recaptcha'
 import { useTurnstile } from '@/features/auth/hooks/use-turnstile'
 import {
   getAffiliateCode,
@@ -67,6 +69,7 @@ export function SignUpForm({
   const [isWeChatDialogOpen, setIsWeChatDialogOpen] = useState(false)
   const [isWeChatSubmitting, setIsWeChatSubmitting] = useState(false)
   const [turnstileWidgetKey, setTurnstileWidgetKey] = useState(0)
+  const [recaptchaWidgetKey, setRecaptchaWidgetKey] = useState(0)
   const legalConsentErrorMessage = t('Please agree to the legal terms first')
 
   const { status } = useStatus()
@@ -77,6 +80,13 @@ export function SignUpForm({
     setTurnstileToken,
     validateTurnstile,
   } = useTurnstile()
+  const {
+    isRecaptchaEnabled,
+    recaptchaSiteKey,
+    recaptchaToken,
+    setRecaptchaToken,
+    validateRecaptcha,
+  } = useRecaptcha()
   const { redirectToLogin, handleLoginResult } = useAuthRedirect()
   const {
     isSending: isSendingCode,
@@ -86,6 +96,8 @@ export function SignUpForm({
   } = useEmailVerification({
     turnstileToken,
     validateTurnstile,
+    recaptchaToken,
+    validateRecaptcha,
   })
 
   const form = useForm<z.infer<typeof registerFormSchema>>({
@@ -108,7 +120,9 @@ export function SignUpForm({
     status?.data?.oauth_register_enabled ??
     true
   const hasWeChatLogin = Boolean(status?.wechat_login)
-  const turnstileReady = !isTurnstileEnabled || Boolean(turnstileToken)
+  const captchaReady =
+    (!isTurnstileEnabled || Boolean(turnstileToken)) &&
+    (!isRecaptchaEnabled || Boolean(recaptchaToken))
 
   const wechatQrCodeUrl = useMemo(() => {
     return (
@@ -158,6 +172,7 @@ export function SignUpForm({
     }
 
     if (!validateTurnstile()) return
+    if (!validateRecaptcha()) return
 
     setIsLoading(true)
     try {
@@ -168,6 +183,7 @@ export function SignUpForm({
         verification_code: verificationCode || undefined,
         aff_code: getAffiliateCode(),
         turnstile: turnstileToken,
+        recaptcha: recaptchaToken,
       })
 
       if (res?.success) {
@@ -189,6 +205,10 @@ export function SignUpForm({
     if (await sendCode(emailValue || '')) {
       setTurnstileToken('')
       setTurnstileWidgetKey((current) => current + 1)
+      if (isRecaptchaEnabled) {
+        setRecaptchaToken('')
+        setRecaptchaWidgetKey((current) => current + 1)
+      }
     }
   }
 
@@ -340,7 +360,7 @@ export function SignUpForm({
                   isSendingCode ||
                   isActive ||
                   !emailValue ||
-                  !turnstileReady
+                  !captchaReady
                 }
                 onClick={handleSendVerificationCode}
               >
@@ -361,6 +381,18 @@ export function SignUpForm({
           </div>
         )}
 
+        {/* reCAPTCHA */}
+        {isRecaptchaEnabled && (
+          <div className='mt-2'>
+            <Recaptcha
+              key={recaptchaWidgetKey}
+              siteKey={recaptchaSiteKey}
+              onVerify={setRecaptchaToken}
+              onExpire={() => setRecaptchaToken('')}
+            />
+          </div>
+        )}
+
         <LegalConsent
           status={status}
           checked={agreedToLegal}
@@ -375,7 +407,7 @@ export function SignUpForm({
           disabled={
             isLoading ||
             (requiresLegalConsent && !agreedToLegal) ||
-            !turnstileReady
+            !captchaReady
           }
         >
           {isLoading ? <Loader2 className='h-4 w-4 animate-spin' /> : null}

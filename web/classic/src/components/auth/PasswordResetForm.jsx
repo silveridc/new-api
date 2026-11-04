@@ -27,6 +27,7 @@ import {
   getSystemName,
 } from '../../helpers';
 import Turnstile from 'react-turnstile';
+import Recaptcha from '../common/ui/Recaptcha';
 import { Button, Card, Form, Typography } from '@douyinfe/semi-ui';
 import { IconMail } from '@douyinfe/semi-icons';
 import { Link } from 'react-router-dom';
@@ -45,6 +46,9 @@ const PasswordResetForm = () => {
   const [turnstileEnabled, setTurnstileEnabled] = useState(false);
   const [turnstileSiteKey, setTurnstileSiteKey] = useState('');
   const [turnstileToken, setTurnstileToken] = useState('');
+  const [recaptchaEnabled, setRecaptchaEnabled] = useState(false);
+  const [recaptchaSiteKey, setRecaptchaSiteKey] = useState('');
+  const [recaptchaToken, setRecaptchaToken] = useState('');
   const [disableButton, setDisableButton] = useState(false);
   const [countdown, setCountdown] = useState(30);
 
@@ -58,6 +62,10 @@ const PasswordResetForm = () => {
       if (status.turnstile_check) {
         setTurnstileEnabled(true);
         setTurnstileSiteKey(status.turnstile_site_key);
+      }
+      if (status.recaptcha_check) {
+        setRecaptchaEnabled(true);
+        setRecaptchaSiteKey(status.recaptcha_site_key);
       }
     }
   }, []);
@@ -88,11 +96,15 @@ const PasswordResetForm = () => {
       showInfo(t('请稍后几秒重试，Turnstile 正在检查用户环境！'));
       return;
     }
+    if (recaptchaEnabled && recaptchaToken === '') {
+      showInfo(t('请稍后几秒重试，reCAPTCHA 正在检查用户环境！'));
+      return;
+    }
     setDisableButton(true);
     setLoading(true);
     try {
       const res = await API.get(
-        `/api/reset_password?email=${email}&turnstile=${turnstileToken}`,
+        `/api/reset_password?email=${email}&turnstile=${turnstileToken}&recaptcha=${recaptchaToken}`,
       );
       const { success, message } = res.data;
       if (success) {
@@ -184,6 +196,19 @@ const PasswordResetForm = () => {
                   sitekey={turnstileSiteKey}
                   onVerify={(token) => {
                     setTurnstileToken(token);
+                  }}
+                />
+              </div>
+            )}
+            {recaptchaEnabled && (
+              <div className='flex justify-center mt-6'>
+                <Recaptcha
+                  siteKey={recaptchaSiteKey}
+                  onVerify={(token) => {
+                    setRecaptchaToken(token);
+                  }}
+                  onExpire={() => {
+                    setRecaptchaToken('');
                   }}
                 />
               </div>

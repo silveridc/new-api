@@ -73,6 +73,9 @@ const PersonalSetting = () => {
   const [turnstileEnabled, setTurnstileEnabled] = useState(false);
   const [turnstileSiteKey, setTurnstileSiteKey] = useState('');
   const [turnstileToken, setTurnstileToken] = useState('');
+  const [recaptchaEnabled, setRecaptchaEnabled] = useState(false);
+  const [recaptchaSiteKey, setRecaptchaSiteKey] = useState('');
+  const [recaptchaToken, setRecaptchaToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [disableButton, setDisableButton] = useState(false);
   const [countdown, setCountdown] = useState(30);
@@ -143,6 +146,10 @@ const PersonalSetting = () => {
         setTurnstileEnabled(false);
         setTurnstileSiteKey('');
       }
+      setRecaptchaEnabled(!!parsed.recaptcha_check);
+      setRecaptchaSiteKey(
+        parsed.recaptcha_check ? parsed.recaptcha_site_key : '',
+      );
     }
     // Always refresh status from server to avoid stale flags (e.g., admin just enabled OAuth)
     (async () => {
@@ -159,6 +166,10 @@ const PersonalSetting = () => {
             setTurnstileEnabled(false);
             setTurnstileSiteKey('');
           }
+          setRecaptchaEnabled(!!data.recaptcha_check);
+          setRecaptchaSiteKey(
+            data.recaptcha_check ? data.recaptcha_site_key : '',
+          );
         }
       } catch (e) {
         // ignore and keep local status
@@ -466,10 +477,14 @@ const PersonalSetting = () => {
       showInfo(t('请稍后几秒重试，Turnstile 正在检查用户环境！'));
       return;
     }
+    if (recaptchaEnabled && recaptchaToken === '') {
+      showInfo(t('请稍后几秒重试，reCAPTCHA 正在检查用户环境！'));
+      return;
+    }
     setLoading(true);
     try {
       const res = await API.get(
-        `/api/verification?email=${inputs.email}&turnstile=${turnstileToken}`,
+        `/api/verification?email=${inputs.email}&turnstile=${turnstileToken}&recaptcha=${recaptchaToken}`,
       );
       const { success, message } = res.data;
       if (success) {
@@ -588,6 +603,8 @@ const PersonalSetting = () => {
                 status={status}
                 turnstileEnabled={turnstileEnabled}
                 turnstileSiteKey={turnstileSiteKey}
+                recaptchaEnabled={recaptchaEnabled}
+                recaptchaSiteKey={recaptchaSiteKey}
               />
             </div>
           )}
@@ -656,6 +673,9 @@ const PersonalSetting = () => {
         turnstileEnabled={turnstileEnabled}
         turnstileSiteKey={turnstileSiteKey}
         setTurnstileToken={setTurnstileToken}
+        recaptchaEnabled={recaptchaEnabled}
+        recaptchaSiteKey={recaptchaSiteKey}
+        setRecaptchaToken={setRecaptchaToken}
       />
 
       <WeChatBindModal

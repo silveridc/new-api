@@ -84,6 +84,9 @@ const SystemSetting = () => {
     TurnstileCheckEnabled: '',
     TurnstileSiteKey: '',
     TurnstileSecretKey: '',
+    RecaptchaCheckEnabled: '',
+    RecaptchaSiteKey: '',
+    RecaptchaSecretKey: '',
     RegisterEnabled: '',
     'passkey.enabled': '',
     'passkey.rp_display_name': '',
@@ -187,6 +190,7 @@ const SystemSetting = () => {
           case 'TelegramOAuthEnabled':
           case 'RegisterEnabled':
           case 'TurnstileCheckEnabled':
+          case 'RecaptchaCheckEnabled':
           case 'EmailDomainRestrictionEnabled':
           case 'EmailAliasRestrictionEnabled':
           case 'SMTPSSLEnabled':
@@ -646,6 +650,27 @@ const SystemSetting = () => {
     }
   };
 
+  const submitRecaptcha = async () => {
+    const options = [];
+
+    if (originInputs['RecaptchaSiteKey'] !== inputs.RecaptchaSiteKey) {
+      options.push({ key: 'RecaptchaSiteKey', value: inputs.RecaptchaSiteKey });
+    }
+    if (
+      originInputs['RecaptchaSecretKey'] !== inputs.RecaptchaSecretKey &&
+      inputs.RecaptchaSecretKey !== ''
+    ) {
+      options.push({
+        key: 'RecaptchaSecretKey',
+        value: inputs.RecaptchaSecretKey,
+      });
+    }
+
+    if (options.length > 0) {
+      await updateOptions(options);
+    }
+  };
+
   const submitLinuxDOOAuth = async () => {
     const options = [];
 
@@ -1074,6 +1099,15 @@ const SystemSetting = () => {
                         }
                       >
                         {t('允许 Turnstile 用户校验')}
+                      </Form.Checkbox>
+                      <Form.Checkbox
+                        field='RecaptchaCheckEnabled'
+                        noLabel
+                        onChange={(e) =>
+                          handleCheckboxChange('RecaptchaCheckEnabled', e)
+                        }
+                      >
+                        {t('允许 reCAPTCHA 用户校验')}
                       </Form.Checkbox>
                     </Col>
                     <Col xs={24} sm={24} md={12} lg={12} xl={12}>
@@ -1729,6 +1763,33 @@ const SystemSetting = () => {
                   </Row>
                   <Button onClick={submitTurnstile}>
                     {t('保存 Turnstile 设置')}
+                  </Button>
+                </Form.Section>
+              </Card>
+
+              <Card>
+                <Form.Section text={t('配置 reCAPTCHA')}>
+                  <Text>{t('用以支持用户校验')}</Text>
+                  <Row
+                    gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
+                  >
+                    <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+                      <Form.Input
+                        field='RecaptchaSiteKey'
+                        label={t('reCAPTCHA Site Key')}
+                      />
+                    </Col>
+                    <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+                      <Form.Input
+                        field='RecaptchaSecretKey'
+                        label={t('reCAPTCHA Secret Key')}
+                        type='password'
+                        placeholder={t('敏感信息不会发送到前端显示')}
+                      />
+                    </Col>
+                  </Row>
+                  <Button onClick={submitRecaptcha}>
+                    {t('保存 reCAPTCHA 设置')}
                   </Button>
                 </Form.Section>
               </Card>
