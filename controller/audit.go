@@ -37,6 +37,7 @@ var auditContentTemplates = map[string]string{
 	"user.2fa_enable":           "Enabled two-factor authentication",
 	"user.2fa_disable_self":     "Disabled two-factor authentication",
 	"user.2fa_backup_codes":     "Regenerated two-factor backup codes",
+	"user.2fa_login_methods":    "Changed two-factor login requirements: skipping ${methods}",
 	"user.security_verify":      "Completed security verification",
 	"user.password_change":      "Account password change",
 	"user.binding_start":        "Account binding request",
@@ -69,6 +70,11 @@ var auditContentTemplates = map[string]string{
 
 	"redemption.create":       "Created ${count} redemption codes named ${name} (${quota} each)",
 	"redemption.delete_batch": "Batch deleted ${count} redemption codes",
+
+	"oidc.client_create":       "Created OIDC client ${name} (${client_id})",
+	"oidc.client_update":       "Updated OIDC client ${name} (${client_id})",
+	"oidc.client_delete":       "Deleted OIDC client ${name} (${client_id})",
+	"oidc.client_secret_reset": "Reset the secret of OIDC client ${name} (${client_id})",
 
 	"subscription.plan_reset":       "Reset active subscriptions for plan ${plan_id}",
 	"subscription.user_plan_reset":  "Reset active plan ${plan_id} subscriptions for user ${target_user_id}",

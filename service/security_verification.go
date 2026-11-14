@@ -27,6 +27,7 @@ const (
 	VerificationScopeTwoFASetup          = "2fa.setup"
 	VerificationScopeTwoFADisable        = "2fa.disable"
 	VerificationScopeTwoFABackupCodes    = "2fa.backup_codes.regenerate"
+	VerificationScopeTwoFALoginMethods   = "2fa.login_methods"
 	VerificationScopeLogin               = "auth.login"
 	VerificationScopeAccessTokenGenerate = "access_token.generate"
 	VerificationScopeAccessTokenRevoke   = "access_token.revoke"
@@ -260,7 +261,7 @@ func BindVerificationOperation(operation VerificationOperation) (VerificationBin
 		}
 		normalized = context
 	case VerificationScopePasskeyRegister, VerificationScopePasskeyDelete, VerificationScopeTwoFASetup,
-		VerificationScopeTwoFADisable, VerificationScopeTwoFABackupCodes,
+		VerificationScopeTwoFADisable, VerificationScopeTwoFABackupCodes, VerificationScopeTwoFALoginMethods,
 		VerificationScopePasswordSet, VerificationScopePasswordChange, VerificationScopeAccountDelete:
 		if len(fields) != 0 {
 			return VerificationBinding{}, ErrVerificationContextInvalid
@@ -320,7 +321,7 @@ func securityVerificationPolicy(scope string, state model.UserVerificationState)
 	}
 	switch scope {
 	case VerificationScopeChannelKeyRead, VerificationScopePasskeyDelete, VerificationScopeLogin:
-	case VerificationScopeTwoFADisable, VerificationScopeTwoFABackupCodes:
+	case VerificationScopeTwoFADisable, VerificationScopeTwoFABackupCodes, VerificationScopeTwoFALoginMethods:
 		if !state.HasTwoFA {
 			return nil, model.ErrTwoFANotEnabled
 		}
@@ -339,6 +340,11 @@ func securityVerificationPolicy(scope string, state model.UserVerificationState)
 		}
 		if (scope == VerificationScopePasswordSet && state.HasPassword) || (scope == VerificationScopePasswordChange && !state.HasPassword) {
 			return nil, ErrVerificationForbidden
+		}
+		// Deleting a user is irreversible, so a TOTP-enrolled administrator must
+		// confirm it with TOTP itself rather than a passkey or password.
+		if scope == VerificationScopeAdminUserDelete && state.HasTwoFA {
+			methods = []string{VerificationMethodTwoFA}
 		}
 		if len(methods) == 0 {
 			if state.HasPassword {

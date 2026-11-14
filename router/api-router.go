@@ -36,6 +36,8 @@ func SetApiRouter(router *gin.Engine) {
 		//apiRouter.GET("/midjourney", controller.GetMidjourney)
 		apiRouter.GET("/home_page_content", controller.GetHomePageContent)
 		apiRouter.GET("/pricing", middleware.HeaderNavModuleAuth("pricing"), controller.GetPricing)
+		apiRouter.GET("/oidc/authorize", middleware.UserAuth(), controller.OIDCAuthorizeAPI)
+
 		perfMetricsRoute := apiRouter.Group("/perf-metrics")
 		perfMetricsRoute.Use(middleware.HeaderNavModulePublicOrUserAuth("pricing"))
 		{
@@ -146,6 +148,7 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.POST("/2fa/enable", middleware.UserCriticalRateLimit("security-verification"), middleware.DisableCache(), controller.Enable2FA)
 				selfRoute.POST("/2fa/disable", middleware.DisableCache(), controller.Disable2FA)
 				selfRoute.POST("/2fa/backup_codes", middleware.DisableCache(), controller.RegenerateBackupCodes)
+				selfRoute.PUT("/2fa/login_methods", middleware.DisableCache(), controller.UpdateTwoFALoginMethods)
 
 				// Check-in routes
 				selfRoute.GET("/checkin", controller.GetCheckinStatus)
@@ -167,6 +170,7 @@ func SetApiRouter(router *gin.Engine) {
 				adminRoute.DELETE("/:id/oauth/bindings/:provider_id", controller.UnbindCustomOAuthByAdmin)
 				adminRoute.DELETE("/:id/bindings/:binding_type", controller.AdminClearUserBinding)
 				adminRoute.GET("/:id", controller.GetUser)
+				adminRoute.POST("/:id/github-login/refresh", controller.RefreshUserGitHubLogin)
 				adminRoute.POST("/", controller.CreateUser)
 				adminRoute.POST("/manage", controller.ManageUser)
 				adminRoute.PUT("/", controller.UpdateUser)
@@ -177,6 +181,17 @@ func SetApiRouter(router *gin.Engine) {
 				adminRoute.GET("/2fa/stats", controller.Admin2FAStats)
 				adminRoute.DELETE("/:id/2fa", controller.AdminDisable2FA)
 			}
+		}
+
+		// OIDC provider client management
+		oidcProviderRoute := apiRouter.Group("/oidc/clients")
+		oidcProviderRoute.Use(middleware.AdminAuth())
+		{
+			oidcProviderRoute.GET("/", controller.ListOIDCProviderClients)
+			oidcProviderRoute.POST("/", controller.CreateOIDCProviderClient)
+			oidcProviderRoute.PUT("/:id", controller.UpdateOIDCProviderClient)
+			oidcProviderRoute.DELETE("/:id", controller.DeleteOIDCProviderClient)
+			oidcProviderRoute.POST("/:id/secret", controller.ResetOIDCProviderClientSecret)
 		}
 
 		// Subscription billing (plans, purchase, admin management)

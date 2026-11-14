@@ -380,6 +380,9 @@ func migrateDB() error {
 		&CasbinRule{},
 		&AuthzRole{},
 		&UserAccessToken{},
+		&OIDCProviderClient{},
+		&OIDCProviderCode{},
+		&OIDCProviderSigningKey{},
 	)
 	if err != nil {
 		return err

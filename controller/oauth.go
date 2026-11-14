@@ -168,9 +168,16 @@ func HandleOAuth(c *gin.Context) {
 		Intent:   pendingFlow.Intent,
 	}
 	bindSucceeded, notificationFailed := false, false
+	bindIdentity := map[string]any{}
 	if pendingFlow.Intent == model.AuthFlowIntentBind {
 		defer func() {
-			recordUserSecurityAudit(c, pendingFlow.UserId, "user.binding_bind", map[string]any{"provider": providerName, "success": bindSucceeded, "notification_failed": notificationFailed})
+			params := map[string]any{"provider": providerName, "success": bindSucceeded, "notification_failed": notificationFailed}
+			for key, value := range bindIdentity {
+				if value != "" {
+					params[key] = value
+				}
+			}
+			recordUserSecurityAudit(c, pendingFlow.UserId, "user.binding_bind", params)
 		}()
 	}
 	// Bind and verification callbacks must use the dashboard session that started them.
@@ -272,6 +279,8 @@ func HandleOAuth(c *gin.Context) {
 		return
 	}
 	if pendingFlow.Intent == model.AuthFlowIntentBind {
+		bindIdentity["provider_user_id"] = oauthUser.ProviderUserID
+		bindIdentity["provider_username"] = oauthUser.Username
 		bindSucceeded, notificationFailed = handleOAuthBind(c, providerName, provider, oauthUser, pendingFlow, state, consumeMatch)
 		return
 	}
@@ -385,6 +394,7 @@ func handleOAuthBind(c *gin.Context, providerName string, provider oauth.Provide
 		writeSecurityOperationError(c, err)
 		return false, false
 	}
+	rememberGitHubLogin(provider, identity.UserID, oauthUser)
 	user, err := model.GetUserById(identity.UserID, false)
 	if err != nil {
 		writeSecurityOperationError(c, err)
@@ -393,6 +403,17 @@ func handleOAuthBind(c *gin.Context, providerName string, provider oauth.Provide
 	notificationFailed := service.NotifyAccountSecurityChange(service.AccountMailLanguage(c, user.Id), user.Email, i18n.MsgSecurityEventLoginLinked, map[string]any{"Provider": provider.GetName()}) != nil
 	common.ApiSuccessT(c, "Binding successful", gin.H{"action": "bind", "notification_warning": notificationFailed})
 	return true, notificationFailed
+}
+
+// rememberGitHubLogin caches the GitHub login name next to the numeric account
+// ID so administrators can identify a binding without calling GitHub.
+func rememberGitHubLogin(provider oauth.Provider, userId int, oauthUser *oauth.OAuthUser) {
+	if provider.ProviderUserIDColumn() != "github_id" || userId <= 0 || strings.TrimSpace(oauthUser.Username) == "" {
+		return
+	}
+	if err := model.SetUserGitHubLogin(userId, oauthUser.Username); err != nil {
+		common.SysError(common.LogText("failed to cache GitHub login for user %d: %s", userId, err.Error()))
+	}
 }
 
 // findOrCreateOAuthUser finds the existing user or creates a new one. For a
@@ -418,6 +439,7 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 		if user.Id == 0 {
 			return nil, nil, &OAuthUserDeletedError{}
 		}
+		rememberGitHubLogin(provider, user.Id, oauthUser)
 		return user, nil, nil
 	}
 
@@ -467,6 +489,7 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 			}
 			if written {
 				user.GitHubId = oauthUser.ProviderUserID
+				rememberGitHubLogin(provider, user.Id, oauthUser)
 				notificationFailed := service.NotifyAccountSecurityChange(service.AccountMailLanguage(c, user.Id), user.Email, i18n.MsgSecurityEventLoginLinked, map[string]any{"Provider": provider.GetName()}) != nil
 				recordLegacyGitHubBindingAudit(c, user, true, map[string]any{
 					"legacy_id": legacyID, "provider_user_id": oauthUser.ProviderUserID,
@@ -515,6 +538,9 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 	}
 	user.Role = common.RoleCommonUser
 	user.Status = common.UserStatusEnabled
+	if provider.ProviderUserIDColumn() == "github_id" {
+		user.GitHubLogin = strings.TrimSpace(oauthUser.Username)
+	}
 
 	// Handle affiliate code
 	inviterId := 0
@@ -561,12 +587,13 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 			// Set the provider user ID on the user model and update
 			provider.SetProviderUserID(user, oauthUser.ProviderUserID)
 			if err := tx.Model(user).Updates(map[string]any{
-				"github_id":   user.GitHubId,
-				"discord_id":  user.DiscordId,
-				"oidc_id":     user.OidcId,
-				"linux_do_id": user.LinuxDOId,
-				"wechat_id":   user.WeChatId,
-				"telegram_id": user.TelegramId,
+				"github_id":    user.GitHubId,
+				"discord_id":   user.DiscordId,
+				"oidc_id":      user.OidcId,
+				"linux_do_id":  user.LinuxDOId,
+				"wechat_id":    user.WeChatId,
+				"telegram_id":  user.TelegramId,
+				"github_login": user.GitHubLogin,
 			}).Error; err != nil {
 				return err
 			}

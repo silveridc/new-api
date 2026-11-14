@@ -14,6 +14,7 @@ import (
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/middleware"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/oauth"
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/service/authz"
@@ -409,6 +410,40 @@ func GetUser(c *gin.Context) {
 	return
 }
 
+// RefreshUserGitHubLogin resolves the GitHub login of an existing binding for
+// administrators and caches it on the user row. The lookup is best effort: a
+// failed or rate-limited GitHub call leaves the stored value untouched.
+func RefreshUserGitHubLogin(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	user, err := model.GetUserById(id, false)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	if !canManageTargetRole(c.GetInt("role"), user.Role) {
+		common.ApiErrorT(c, "No permission to access users of same or higher level")
+		return
+	}
+	if user.GitHubId == "" {
+		common.ApiErrorT(c, "GitHub is not bound")
+		return
+	}
+	login, err := oauth.LookupGitHubLogin(c.Request.Context(), user.GitHubId)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	if err := model.SetUserGitHubLogin(user.Id, login); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, gin.H{"github_login": login})
+}
+
 type TransferAffQuotaRequest struct {
 	Quota int `json:"quota" binding:"required"`
 }
@@ -504,6 +539,7 @@ func buildSelfUserData(user *model.User) map[string]any {
 		"status":            user.Status,
 		"email":             user.Email,
 		"github_id":         user.GitHubId,
+		"github_login":      user.GitHubLogin,
 		"discord_id":        user.DiscordId,
 		"oidc_id":           user.OidcId,
 		"wechat_id":         user.WeChatId,
@@ -978,17 +1014,46 @@ func DeleteUser(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	recordManageAuditFor(c, originUser.Id, "user.delete", map[string]any{
-		"username":              originUser.Username,
-		"id":                    originUser.Id,
-		"verification_method":   authorization.Method,
-		"revoked_access_tokens": revokedAccessTokens,
-	})
+	recordManageAuditFor(c, originUser.Id, "user.delete", userDeletionAuditParams(originUser, c.GetString("username"), authorization.Method, revokedAccessTokens))
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
 	})
 	return
+}
+
+// userDeletionAuditParams keeps the identity of a physically deleted user in
+// the audit log; the users row itself is gone after the delete.
+func userDeletionAuditParams(user *model.User, operator string, method string, revokedAccessTokens int64) map[string]any {
+	params := map[string]any{
+		"username":              user.Username,
+		"display_name":          user.DisplayName,
+		"email":                 user.Email,
+		"role":                  user.Role,
+		"status":                user.Status,
+		"group":                 user.Group,
+		"id":                    user.Id,
+		"created_at":            user.CreatedAt,
+		"inviter_id":            user.InviterId,
+		"github_id":             user.GitHubId,
+		"github_login":          user.GitHubLogin,
+		"discord_id":            user.DiscordId,
+		"oidc_id":               user.OidcId,
+		"wechat_id":             user.WeChatId,
+		"telegram_id":           user.TelegramId,
+		"linux_do_id":           user.LinuxDOId,
+		"deleted_by":            operator,
+		"verification_method":   method,
+		"revoked_access_tokens": revokedAccessTokens,
+	}
+	if bindings, err := model.GetUserOAuthBindingsByUserId(user.Id); err == nil && len(bindings) > 0 {
+		providers := make([]string, 0, len(bindings))
+		for _, binding := range bindings {
+			providers = append(providers, fmt.Sprintf("%d:%s", binding.ProviderId, binding.ProviderUserId))
+		}
+		params["oauth_bindings"] = providers
+	}
+	return params
 }
 
 func DeleteSelf(c *gin.Context) {

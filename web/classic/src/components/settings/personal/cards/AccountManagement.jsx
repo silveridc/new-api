@@ -51,6 +51,7 @@ import {
   onDiscordOAuthClicked,
   onCustomOAuthClicked,
   getOAuthProviderIcon,
+  requestVerification,
 } from '../../../../helpers';
 import TwoFASetting from '../components/TwoFASetting';
 
@@ -97,6 +98,17 @@ const AccountManagement = ({
     );
   };
   const isBound = (accountId) => Boolean(accountId);
+  // Binding is a verified dashboard action: collect a proof for this provider,
+  // then start a bind-intent flow. Login flows never pass through here.
+  const startBinding = async (provider, start) => {
+    const proof = await requestVerification({
+      scope: 'account.binding.bind',
+      context: { provider },
+    });
+    const token = proof?.proof_token;
+    if (!token) return;
+    await start({ intent: 'bind', proof: token });
+  };
   const [showTelegramBindModal, setShowTelegramBindModal] =
     React.useState(false);
   const [customOAuthBindings, setCustomOAuthBindings] = React.useState([]);
@@ -144,7 +156,9 @@ const AccountManagement = ({
 
   // Handle bind custom OAuth
   const handleBindCustomOAuth = (provider) => {
-    onCustomOAuthClicked(provider);
+    startBinding(provider.slug, (options) =>
+      onCustomOAuthClicked(provider, options),
+    );
   };
 
   // Check if custom OAuth provider is bound
@@ -292,8 +306,12 @@ const AccountManagement = ({
                       </div>
                       <div className='text-sm text-gray-500 truncate'>
                         {renderAccountInfo(
-                          userState.user?.github_id,
-                          t('GitHub ID'),
+                          userState.user?.github_login
+                            ? `@${userState.user.github_login}`
+                            : userState.user?.github_id,
+                          userState.user?.github_login
+                            ? `GitHub ID: ${userState.user.github_id}`
+                            : t('GitHub ID'),
                         )}
                       </div>
                     </div>
@@ -304,7 +322,9 @@ const AccountManagement = ({
                       theme='outline'
                       size='small'
                       onClick={() =>
-                        onGitHubOAuthClicked(status.github_client_id)
+                        startBinding('github', (options) =>
+                          onGitHubOAuthClicked(status.github_client_id, options),
+                        )
                       }
                       disabled={
                         isBound(userState.user?.github_id) ||
@@ -345,7 +365,12 @@ const AccountManagement = ({
                       theme='outline'
                       size='small'
                       onClick={() =>
-                        onDiscordOAuthClicked(status.discord_client_id)
+                        startBinding('discord', (options) =>
+                          onDiscordOAuthClicked(
+                            status.discord_client_id,
+                            options,
+                          ),
+                        )
                       }
                       disabled={
                         isBound(userState.user?.discord_id) ||
@@ -386,9 +411,13 @@ const AccountManagement = ({
                       theme='outline'
                       size='small'
                       onClick={() =>
-                        onOIDCClicked(
-                          status.oidc_authorization_endpoint,
-                          status.oidc_client_id,
+                        startBinding('oidc', (options) =>
+                          onOIDCClicked(
+                            status.oidc_authorization_endpoint,
+                            status.oidc_client_id,
+                            false,
+                            options,
+                          ),
                         )
                       }
                       disabled={
@@ -504,7 +533,12 @@ const AccountManagement = ({
                       theme='outline'
                       size='small'
                       onClick={() =>
-                        onLinuxDOOAuthClicked(status.linuxdo_client_id)
+                        startBinding('linuxdo', (options) =>
+                          onLinuxDOOAuthClicked(
+                            status.linuxdo_client_id,
+                            options,
+                          ),
+                        )
                       }
                       disabled={
                         isBound(userState.user?.linux_do_id) ||

@@ -35,6 +35,8 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import Turnstile from 'react-turnstile';
 import Recaptcha from '../../../common/ui/Recaptcha';
@@ -243,11 +245,24 @@ const CheckinCalendar = ({
     return null;
   };
 
-  // 处理月份变化
+  // 处理月份变化：按本地时间格式化，避免月初在 UTC+ 时区落到上一个月
   const handleMonthChange = (date) => {
-    const month = date.toISOString().slice(0, 7);
-    setCurrentMonth(month);
+    const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    if (month !== currentMonth) {
+      setCurrentMonth(month);
+    }
   };
+
+  const shiftMonth = (offset) => {
+    const [year, month] = currentMonth.split('-').map(Number);
+    const shifted = new Date(year, month - 1 + offset, 1);
+    handleMonthChange(shifted);
+  };
+
+  const displayMonth = useMemo(() => {
+    const [year, month] = currentMonth.split('-').map(Number);
+    return new Date(year, month - 1, 1);
+  }, [currentMonth]);
 
   return (
     <Card className='!rounded-2xl'>
@@ -409,8 +424,26 @@ const CheckinCalendar = ({
               align-items: center;
               justify-content: center;}
           `}</style>
+            <div className='flex items-center justify-between px-2 py-1.5 border-b bg-slate-50 dark:bg-slate-800'>
+              <Button
+                icon={<ChevronLeft size={16} />}
+                theme='borderless'
+                size='small'
+                aria-label={t('Previous month')}
+                onClick={() => shiftMonth(-1)}
+              />
+              <Typography.Text strong>{currentMonth}</Typography.Text>
+              <Button
+                icon={<ChevronRight size={16} />}
+                theme='borderless'
+                size='small'
+                aria-label={t('Next month')}
+                onClick={() => shiftMonth(1)}
+              />
+            </div>
             <Calendar
               mode='month'
+              displayValue={displayMonth}
               onChange={handleMonthChange}
               dateGridRender={(dateString, date) => dateRender(dateString)}
             />

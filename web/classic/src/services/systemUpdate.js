@@ -37,7 +37,7 @@ For commercial licensing, please contact support@quantumnous.com
  */
 
 export const GITHUB_RELEASES_API =
-  'https://api.github.com/repos/QuantumNous/new-api/releases?per_page=100';
+  'https://api.github.com/repos/silveridc/new-api/releases?per_page=100';
 
 export const UPDATE_CHECK_TIMEOUT_MS = 10000;
 
@@ -170,7 +170,7 @@ export function selectLatestRelease(payload) {
 }
 
 export function getSystemReleaseUrl(release) {
-  return `https://github.com/QuantumNous/new-api/releases/tag/${encodeURIComponent(
+  return `https://github.com/silveridc/new-api/releases/tag/${encodeURIComponent(
     release.tag_name,
   )}`;
 }

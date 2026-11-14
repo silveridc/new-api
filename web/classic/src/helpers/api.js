@@ -277,15 +277,31 @@ export const processGroupsData = (data, userGroup) => {
 // 原来components中的utils.js
 
 export async function getOAuthState(options = {}) {
-  const { intent = options.shouldLogout ? 'login' : 'bind', provider = '', scope, context } = options;
-  const aff = intent === 'login' ? localStorage.getItem('aff') || '' : '';
-  const response = await API.post('/api/oauth/state', {
-    provider,
-    intent,
-    aff: aff || undefined,
+  const {
+    intent = options.shouldLogout ? 'login' : 'bind',
+    provider = '',
     scope,
     context,
-  });
+    proof,
+  } = options;
+  const aff = intent === 'login' ? localStorage.getItem('aff') || '' : '';
+  const requestConfig = proof
+    ? {
+        headers: { 'X-Security-Proof': proof },
+        singleUseAuthorization: true,
+      }
+    : undefined;
+  const response = await API.post(
+    '/api/oauth/state',
+    {
+      provider,
+      intent,
+      aff: aff || undefined,
+      scope,
+      context,
+    },
+    requestConfig,
+  );
   const { success, message, data } = response.data;
   if (success) return data?.flow_token || data;
   showError(message);

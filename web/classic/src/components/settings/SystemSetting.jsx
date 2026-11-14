@@ -44,6 +44,7 @@ import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import { buildEmailOptionWrites } from '../../helpers/emailSettings';
 import CustomOAuthSetting from './CustomOAuthSetting';
+import OIDCProviderClients from './OIDCProviderClients';
 
 const SystemSetting = () => {
   const { t } = useTranslation();
@@ -1581,6 +1582,22 @@ const SystemSetting = () => {
                   <Button onClick={submitOIDCSettings}>
                     {t('保存 OIDC 设置')}
                   </Button>
+                </Form.Section>
+              </Card>
+
+              <Card>
+                <Form.Section text={t('OIDC 登录出口')}>
+                  <Text>
+                    {t(
+                      '允许外部应用通过本实例登录。回调地址必须与外部应用配置完全一致。',
+                    )}
+                  </Text>
+                  <div style={{ marginTop: 16 }}>
+                    <OIDCProviderClients
+                      t={t}
+                      serverAddress={inputs.ServerAddress}
+                    />
+                  </div>
                 </Form.Section>
               </Card>
 

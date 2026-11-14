@@ -19,6 +19,10 @@ type UserSetting struct {
 	BillingPreference                string  `json:"billing_preference,omitempty"`                   // BillingPreference 扣费策略（订阅/钱包）
 	Language                         string  `json:"language,omitempty"`                             // Language 用户语言偏好 (zh, en)
 	UiVariant                        string  `json:"ui_variant,omitempty"`                           // 界面偏好：classic/next，空值跟随系统默认
+	// TwoFASkipMethods lists login methods that do not require the TOTP step.
+	// Method keys match loginMethodFromContext: password, passkey, wechat,
+	// telegram and oauth:<provider>. An empty or absent list keeps TOTP for all.
+	TwoFASkipMethods []string `json:"two_fa_skip_methods,omitempty"`
 }
 
 var (

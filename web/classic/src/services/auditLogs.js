@@ -202,3 +202,52 @@ export function describeAuditTaskPlugin(entry = {}) {
     platform: plugin.platform ?? plugin.name ?? plugin.key ?? '',
   };
 }
+
+/**
+ * 列表页直接从 other 提取高频字段，避免每次点开详情才能看到操作码/验证方式等。
+ * 兼容 other 为对象或 JSON 字符串两种形态。
+ */
+export function getAuditListFields(entry = {}) {
+  let metadata = entry.other;
+  if (typeof metadata === 'string') {
+    try {
+      metadata = JSON.parse(metadata);
+    } catch {
+      metadata = {};
+    }
+  }
+  if (!isDetailObject(metadata)) {
+    metadata = {};
+  }
+  const op = isDetailObject(metadata.op) ? metadata.op : {};
+  const params = isDetailObject(op.params) ? op.params : {};
+  const admin = isDetailObject(metadata.admin_info)
+    ? metadata.admin_info
+    : {};
+  const auditInfo = isDetailObject(metadata.audit_info)
+    ? metadata.audit_info
+    : {};
+  const pick = (...keys) => {
+    for (const key of keys) {
+      const value = params[key];
+      if (value !== undefined && value !== null && value !== '') {
+        return value;
+      }
+    }
+    return '';
+  };
+  return {
+    action: op.action || entry.action || '',
+    targetUserId: pick('target_user_id', 'user_id'),
+    verificationMethod:
+      pick('verification_method') || admin.auth_method || '',
+    loginMethod: metadata.login_method || pick('method') || '',
+    provider: pick('provider'),
+    userAgent: metadata.user_agent || '',
+    requestMethod: auditInfo.method || '',
+    requestRoute: auditInfo.route || auditInfo.path || '',
+    status: auditInfo.status || '',
+    success:
+      typeof auditInfo.success === 'boolean' ? auditInfo.success : undefined,
+  };
+}

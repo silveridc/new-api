@@ -156,7 +156,7 @@ describe('selectLatestRelease', () => {
 describe('getSystemReleaseUrl', () => {
   it('指向 QuantumNous 仓库并对 tag 做 URL 编码', () => {
     expect(getSystemReleaseUrl({ tag_name: 'v1.2.3' })).toBe(
-      'https://github.com/QuantumNous/new-api/releases/tag/v1.2.3',
+      'https://github.com/silveridc/new-api/releases/tag/v1.2.3',
     );
     expect(getSystemReleaseUrl({ tag_name: 'v1.2.3 rc' })).toContain(
       'v1.2.3%20rc',
@@ -206,7 +206,7 @@ describe('fetchLatestSystemRelease', () => {
     const result = await fetchLatestSystemRelease(new AbortController().signal);
     expect(result.tag_name).toBe('v1.3.0');
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toContain('repos/QuantumNous/new-api/releases');
+    expect(url).toContain('repos/silveridc/new-api/releases');
     expect(url).toContain('per_page=100');
     expect(init.credentials).toBe('omit');
     expect(init.headers.Accept).toBe('application/vnd.github+json');

@@ -87,6 +87,16 @@ const LoginForm = () => {
   });
   const { username, password } = inputs;
   const [searchParams, setSearchParams] = useSearchParams();
+  // OIDC 登录出口在未登录时会带 redirect 参数跳回登录页；只接受站内相对路径。
+  const navigateAfterLogin = () => {
+    const target = searchParams.get('redirect');
+    if (target && target.startsWith('/') && !target.startsWith('//')) {
+      // OIDC 出口指向后端页面，必须整页跳转而不是前端路由。
+      window.location.assign(target);
+      return;
+    }
+    navigate('/console');
+  };
   const [submitted, setSubmitted] = useState(false);
   const [userState, userDispatch] = useContext(UserContext);
   const [statusState] = useContext(StatusContext);
@@ -216,7 +226,7 @@ const LoginForm = () => {
         userDispatch({ type: 'login', payload: user });
         storeUserProfile(user);
         setUserData(user);
-        navigate('/');
+        navigateAfterLogin();
         showSuccess('登录成功！');
         setShowWeChatLoginModal(false);
       } else {
@@ -271,7 +281,7 @@ const LoginForm = () => {
             storeUserProfile(user);
             setUserData(user);
             showSuccess('登录成功！');
-            navigate('/console');
+            navigateAfterLogin();
           }
         } else {
           showError(message);
@@ -317,7 +327,7 @@ const LoginForm = () => {
         userDispatch({ type: 'login', payload: user });
         storeUserProfile(user);
         setUserData(user);
-        navigate('/');
+        navigateAfterLogin();
       } else {
         showError(message);
       }
@@ -479,7 +489,7 @@ const LoginForm = () => {
         storeUserProfile(user);
         setUserData(user);
         showSuccess('登录成功！');
-        navigate('/console');
+        navigateAfterLogin();
       } else {
         showError(finish.message || 'Passkey 登录失败，请重试');
       }
@@ -515,7 +525,7 @@ const LoginForm = () => {
     storeUserProfile(user);
     setUserData(user);
     showSuccess('登录成功！');
-    navigate('/console');
+    navigateAfterLogin();
   };
 
   // 返回登录页面

@@ -228,3 +228,35 @@ func (p *GitHubProvider) GetProviderPrefix() string {
 func (p *GitHubProvider) ProviderUserIDColumn() string {
 	return "github_id"
 }
+
+// LookupGitHubLogin resolves the current login name of a numeric GitHub account
+// ID through the public API. It lets administrators identify an existing
+// binding whose login name was not recorded at bind time.
+func LookupGitHubLogin(ctx context.Context, githubId string) (string, error) {
+	if _, err := strconv.ParseInt(githubId, 10, 64); err != nil {
+		return "", fmt.Errorf("invalid GitHub ID: %s", githubId)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/user/"+githubId, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("User-Agent", "new-api")
+	client := http.Client{Timeout: 10 * time.Second}
+	res, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("GitHub API returned status %d", res.StatusCode)
+	}
+	var githubUser gitHubUser
+	if err := json.NewDecoder(res.Body).Decode(&githubUser); err != nil {
+		return "", err
+	}
+	if githubUser.Login == "" {
+		return "", fmt.Errorf("GitHub account %s has no login", githubId)
+	}
+	return githubUser.Login, nil
+}

@@ -15,6 +15,12 @@ import (
 
 func SetRouter(router *gin.Engine, assets WebAssets) {
 	SetApiRouter(router)
+	// OIDC provider endpoints live at the root by protocol convention.
+	router.GET("/.well-known/openid-configuration", middleware.RouteTag("oidc"), controller.OIDCDiscovery)
+	router.GET("/oidc/jwks", middleware.RouteTag("oidc"), controller.OIDCJWKS)
+	router.GET("/oidc/authorize", middleware.RouteTag("oidc"), controller.OIDCAuthorizeBootstrap)
+	router.POST("/oidc/token", middleware.RouteTag("oidc"), controller.OIDCToken)
+	router.GET("/oidc/userinfo", middleware.RouteTag("oidc"), controller.OIDCUserInfo)
 	SetDashboardRouter(router)
 	SetRelayRouter(router)
 	SetTaskPluginProtocolRouter(router)

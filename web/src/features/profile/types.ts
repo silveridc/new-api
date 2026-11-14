@@ -77,6 +77,8 @@ export interface UserProfile {
   wechat_id?: string
   /** GitHub ID (OAuth) */
   github_id?: string
+  /** GitHub login name cached from the last OAuth sign-in or binding */
+  github_login?: string
   /** Discord ID (OAuth) */
   discord_id?: string
   /** OIDC ID (OAuth) */

@@ -30,6 +30,7 @@ import {
   buildRegistrationResult,
   isPasskeySupported,
   setUserData,
+  requestVerification,
 } from '../../helpers';
 import { UserContext } from '../../context/User';
 import { Modal } from '@douyinfe/semi-ui';
@@ -406,7 +407,13 @@ const PersonalSetting = () => {
       return;
     }
 
-    const res = await API.delete('/api/user/self');
+    const proof = await requestVerification({ scope: 'account.delete' });
+    const proofToken = proof?.proof_token;
+    if (!proofToken) return;
+    const res = await API.delete('/api/user/self', {
+      headers: { 'X-Security-Proof': proofToken },
+      singleUseAuthorization: true,
+    });
     const { success, message } = res.data;
 
     if (success) {

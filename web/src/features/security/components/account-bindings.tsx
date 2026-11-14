@@ -254,9 +254,14 @@ export function AccountBindings({ profile, onUpdate }: AccountBindingsProps) {
       id: 'github',
       label: t('GitHub'),
       icon: IconGithub,
-      value: (profile as unknown as Record<string, unknown>).github_id as
-        | string
-        | undefined,
+      value: (() => {
+        const githubId = (profile as unknown as Record<string, unknown>)
+          .github_id as string | undefined
+        const githubLogin = (profile as unknown as Record<string, unknown>)
+          .github_login as string | undefined
+        if (!githubId) return undefined
+        return githubLogin ? `@${githubLogin} · ${githubId}` : githubId
+      })(),
       isBound: Boolean(
         (profile as unknown as Record<string, unknown>).github_id
       ),

@@ -33,6 +33,7 @@ import { Search, RotateCcw } from 'lucide-react';
 import {
   buildAuditQueryParams,
   getAuditLogs,
+  getAuditListFields,
   AUDIT_CATEGORIES,
   DEFAULT_AUDIT_PAGE_SIZE,
 } from '../../services/auditLogs';
@@ -155,11 +156,13 @@ const AuditPanel = () => {
     filters.start_timestamp > filters.end_timestamp;
 
   const columns = useMemo(() => {
+    // 详情页里的操作码/验证方式/请求信息直接提到列表，减少逐条点开
+    const fieldsOf = (record) => getAuditListFields(record);
     const list = [
       {
         title: t('时间'),
         dataIndex: 'created_at',
-        width: 150,
+        width: 145,
         render: (value) => (
           <span className='font-mono text-xs'>
             {value ? timestamp2string(value) : '-'}
@@ -171,11 +174,11 @@ const AuditPanel = () => {
       list.push({
         title: t('用户'),
         dataIndex: 'username',
-        width: 100,
+        width: 110,
         render: (value, record) => (
           <span>
             {value || '-'}
-            {record.actor_role ? (
+            {record.user_id ? (
               <Typography.Text type='tertiary' size='small'>
                 {' '}
                 (#{record.user_id})
@@ -187,65 +190,104 @@ const AuditPanel = () => {
     }
     list.push(
       {
+        title: t('操作码'),
+        dataIndex: 'action',
+        width: 150,
+        ellipsis: true,
+        render: (value, record) => {
+          const action = value || fieldsOf(record).action;
+          return action ? (
+            <Tag
+              size='small'
+              color='white'
+              className='font-mono text-xs'
+            >
+              {action}
+            </Tag>
+          ) : (
+            '-'
+          );
+        },
+      },
+      {
         title: t('事件'),
         dataIndex: 'content',
-        // 列级 ellipsis 让 Semi 采用 fixed 布局：无宽度列自动分摊剩余空间，
-        // 文案超长时省略并悬浮展示全文
         ellipsis: true,
         render: (value, record) => (
           <Typography.Text ellipsis={{ showTooltip: true }}>
-            {value || record.action || '-'}
+            {value || fieldsOf(record).action || '-'}
           </Typography.Text>
         ),
       },
       {
+        title: t('验证方式'),
+        dataIndex: 'verification_method',
+        width: 105,
+        ellipsis: true,
+        render: (_, record) => {
+          const fields = fieldsOf(record);
+          const method = fields.verificationMethod || fields.loginMethod;
+          if (!method) return '—';
+          if (fields.provider && !fields.loginMethod) {
+            return `${method} · ${fields.provider}`;
+          }
+          return method;
+        },
+      },
+      {
         title: t('分类'),
         dataIndex: 'category',
-        width: 100,
+        width: 90,
         render: (value) => <Tag size='small'>{value || '-'}</Tag>,
       },
       {
         title: 'IP',
         dataIndex: 'ip',
-        width: 120,
+        width: 115,
         render: (value) => (
           <span className='font-mono text-xs'>{value || '—'}</span>
         ),
       },
       {
-        title: t('方法'),
-        dataIndex: 'method',
-        width: 80,
-        render: (value) => (
-          <span className='font-mono text-xs'>{value || '—'}</span>
-        ),
-      },
-      {
-        title: t('路由'),
+        title: t('请求'),
         dataIndex: 'route',
-        // 弹性列：与事件列一起分摊表格剩余宽度，超长省略并悬浮展示
         ellipsis: true,
-        render: (value) => (
-          <Typography.Text
-            mono
-            ellipsis={{ showTooltip: true }}
-          >
-            {value || '—'}
-          </Typography.Text>
-        ),
+        render: (_, record) => {
+          const fields = fieldsOf(record);
+          const method = fields.requestMethod || record.method || '';
+          const route = fields.requestRoute || record.route || '';
+          const status = fields.status || record.status || '';
+          return (
+            <Typography.Text ellipsis={{ showTooltip: true }} className='text-xs'>
+              <span className='font-mono'>{method}</span> {route}
+              {status ? ` (${status})` : ''}
+            </Typography.Text>
+          );
+        },
       },
       {
-        title: 'HTTP',
-        dataIndex: 'status',
-        width: 70,
-        render: (value) => (
-          <span className='font-mono text-xs'>{value || '—'}</span>
-        ),
+        title: 'User-Agent',
+        dataIndex: 'user_agent',
+        width: 150,
+        ellipsis: true,
+        render: (_, record) => {
+          const userAgent = fieldsOf(record).userAgent || record.user_agent;
+          return userAgent ? (
+            <Typography.Text
+              ellipsis={{ showTooltip: true }}
+              className='text-xs'
+            >
+              {userAgent}
+            </Typography.Text>
+          ) : (
+            '—'
+          );
+        },
       },
       {
         title: t('结果'),
         dataIndex: 'success',
-        width: 80,
+        width: 75,
         render: (value) =>
           value ? (
             <Tag color='green' size='small'>
@@ -260,7 +302,7 @@ const AuditPanel = () => {
       {
         title: t('详情'),
         dataIndex: 'details',
-        width: 80,
+        width: 65,
         render: (_, record) => (
           <Button
             size='small'
@@ -383,6 +425,7 @@ const AuditPanel = () => {
         loading={loading}
         size='middle'
         tableLayout='fixed'
+        scroll={{ x: 1280 }}
         empty={t('暂无审计记录')}
         pagination={{
           currentPage: page,

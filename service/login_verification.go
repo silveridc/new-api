@@ -53,6 +53,15 @@ func StartLoginVerification(user *model.User, loginMethod string, migration *Leg
 	if state.Status != common.UserStatusEnabled || state.AuthVersion != user.AuthVersion {
 		return nil, model.ErrUserSessionInactive
 	}
+	// The user may waive the second-factor step for individual login methods.
+	// A pending GitHub binding rewrite still needs a verification, so it cannot
+	// travel through a skipped challenge.
+	if loginMethodSkipsTwoFA(user, loginMethod) {
+		if migration != nil {
+			return nil, ErrVerificationUnavailable
+		}
+		return nil, nil
+	}
 	methods, err := securityVerificationPolicy(VerificationScopeLogin, *state)
 	if err != nil || len(methods) == 0 {
 		if err == nil && migration != nil {
@@ -93,6 +102,18 @@ func StartLoginVerification(user *model.User, loginMethod string, migration *Leg
 		return nil, err
 	}
 	return &LoginChallenge{RequireVerification: true, FlowToken: token, ExpiresAt: expiresAt.Unix(), Methods: methods}, nil
+}
+
+func loginMethodSkipsTwoFA(user *model.User, loginMethod string) bool {
+	if user == nil || loginMethod == "" {
+		return false
+	}
+	for _, method := range user.GetSetting().TwoFASkipMethods {
+		if method == loginMethod {
+			return true
+		}
+	}
+	return false
 }
 
 func RequireLoginVerification(token, method string) (*LoginVerification, error) {

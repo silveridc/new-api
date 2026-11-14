@@ -200,7 +200,6 @@ export type RequestPluginAdminStep = {
 }
 
 export interface LogOtherData {
-  user_agent?: string
   admin_info?: {
     request_policy?: PolicyEvent[]
     request_plugins?: RequestPluginAdminStep[]

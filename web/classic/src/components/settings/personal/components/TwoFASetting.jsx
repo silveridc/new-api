@@ -63,6 +63,8 @@ const TwoFASetting = ({ t }) => {
   const [enableModalVisible, setEnableModalVisible] = useState(false);
   const [disableModalVisible, setDisableModalVisible] = useState(false);
   const [backupModalVisible, setBackupModalVisible] = useState(false);
+  const [skipMethods, setSkipMethods] = useState([]);
+  const [policySaving, setPolicySaving] = useState(false);
 
   // 表单数据
   const [setupData, setSetupData] = useState(null);
@@ -77,6 +79,7 @@ const TwoFASetting = ({ t }) => {
       const res = await API.get('/api/user/2fa/status');
       if (res.data.success) {
         setStatus(res.data.data);
+        setSkipMethods(res.data.data?.skip_methods || []);
       }
     } catch (error) {
       showError(t('获取2FA状态失败'));
@@ -406,6 +409,62 @@ const TwoFASetting = ({ t }) => {
     );
   };
 
+  const loginMethodLabel = (method) => {
+    switch (method) {
+      case 'password':
+        return t('密码登录');
+      case 'passkey':
+        return t('Passkey 登录');
+      case 'wechat':
+        return t('微信登录');
+      case 'telegram':
+        return t('Telegram 登录');
+      default:
+        if (method.startsWith('oauth:')) {
+          const provider = method.slice('oauth:'.length);
+          return t('{{provider}} 登录', { provider });
+        }
+        return method;
+    }
+  };
+
+  const toggleSkipMethod = (method, skip) => {
+    setSkipMethods((previous) =>
+      skip
+        ? previous.includes(method)
+          ? previous
+          : [...previous, method]
+        : previous.filter((item) => item !== method),
+    );
+  };
+
+  const saveLoginMethods = async () => {
+    const verification = await requestVerification({
+      scope: '2fa.login_methods',
+    });
+    if (!verification?.proof_token) {
+      return;
+    }
+    setPolicySaving(true);
+    try {
+      const res = await API.put(
+        '/api/user/2fa/login_methods',
+        { skip_methods: skipMethods },
+        proofConfig(verification.proof_token),
+      );
+      if (res.data.success) {
+        setSkipMethods(res.data.data?.skip_methods || []);
+        showSuccess(t('登录验证方式已保存'));
+      } else {
+        showError(res.data.message);
+      }
+    } catch (error) {
+      showError(error.response?.data?.message || t('保存失败'));
+    } finally {
+      setPolicySaving(false);
+    }
+  };
+
   return (
     <>
       <Card className='!rounded-xl w-full'>
@@ -493,6 +552,50 @@ const TwoFASetting = ({ t }) => {
           </div>
         </div>
       </Card>
+
+      {status.enabled && (status.login_methods || []).length > 0 && (
+        <Card className='!rounded-xl w-full mt-4'>
+          <div className='flex items-start justify-between gap-4'>
+            <div>
+              <Typography.Title heading={6} className='mb-1'>
+                {t('登录验证方式')}
+              </Typography.Title>
+              <Typography.Text type='tertiary' className='text-sm'>
+                {t(
+                  '选择哪些登录方式需要输入两步验证码；取消勾选的方式登录时不再要求 TOTP。',
+                )}
+              </Typography.Text>
+            </div>
+            <Button
+              type='primary'
+              theme='solid'
+              loading={policySaving}
+              onClick={saveLoginMethods}
+              className='!rounded-lg !bg-slate-600 hover:!bg-slate-700'
+            >
+              {t('保存登录验证方式')}
+            </Button>
+          </div>
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4'>
+            {(status.login_methods || []).map((method) => (
+              <div
+                key={method}
+                className='flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2'
+              >
+                <span className='text-sm text-slate-700 dark:text-slate-200'>
+                  {loginMethodLabel(method)}
+                </span>
+                <Checkbox
+                  checked={!skipMethods.includes(method)}
+                  onChange={(e) =>
+                    toggleSkipMethod(method, !e.target.checked)
+                  }
+                />
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* 2FA设置模态框 */}
       <Modal

@@ -22,6 +22,7 @@ import { Card, Tabs, TabPane } from '@douyinfe/semi-ui';
 import { PieChart } from 'lucide-react';
 import { VChart } from '@visactor/react-vchart';
 import FlowPanel from './FlowPanel';
+import ModelLatencyPanel from './ModelLatencyPanel';
 
 const ChartsPanel = ({
   activeChartTab,
@@ -66,6 +67,7 @@ const ChartsPanel = ({
             )}
             {/* 流量分析所有用户可见（普通用户走 self 接口） */}
             <TabPane tab={<span>{t('流量分析')}</span>} itemKey='7' />
+            <TabPane tab={<span>{t('模型耗时')}</span>} itemKey='8' />
           </Tabs>
         </div>
       }
@@ -97,6 +99,7 @@ const ChartsPanel = ({
           {activeChartTab === '6' && isAdminUser && (
             <VChart spec={spec_user_trend} option={CHART_CONFIG} />
           )}
+          {activeChartTab === '8' && <ModelLatencyPanel t={t} />}
         </div>
       )}
     </Card>

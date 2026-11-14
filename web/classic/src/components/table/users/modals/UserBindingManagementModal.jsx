@@ -94,6 +94,7 @@ const UserBindingManagementModal = ({
   const [statusInfo, setStatusInfo] = React.useState({});
   const [customOAuthBindings, setCustomOAuthBindings] = React.useState([]);
   const [builtInBindings, setBuiltInBindings] = React.useState({});
+  const [githubLogin, setGithubLogin] = React.useState('');
   const [bindingActionLoading, setBindingActionLoading] = React.useState({});
 
   const loadBindingData = React.useCallback(async () => {
@@ -121,6 +122,18 @@ const UserBindingManagementModal = ({
 
       if (userRes.data?.success) {
         const userData = userRes.data.data || {};
+        setGithubLogin(userData.github_login || '');
+        if (userData.github_id && !userData.github_login) {
+          // Older bindings stored only the numeric ID; resolve the login once
+          // for audit display. A failed lookup keeps the numeric ID.
+          API.post(`/api/user/${userId}/github-login/refresh`)
+            .then((res) => {
+              if (res.data?.success && res.data.data?.github_login) {
+                setGithubLogin(res.data.data.github_login);
+              }
+            })
+            .catch(() => {});
+        }
         setBuiltInBindings({
           email: userData.email || '',
           github_id: userData.github_id || '',
@@ -245,6 +258,11 @@ const UserBindingManagementModal = ({
       name: 'GitHub',
       enabled: Boolean(statusInfo.github_oauth),
       value: getBuiltInBindingValue('github_id'),
+      displayValue: getBuiltInBindingValue('github_id')
+        ? githubLogin
+          ? `@${githubLogin} · ${getBuiltInBindingValue('github_id')}`
+          : getBuiltInBindingValue('github_id')
+        : '',
       icon: (
         <IconGithubLogo
           size='default'
@@ -427,7 +445,7 @@ const UserBindingManagementModal = ({
                             </Tag>
                           </div>
                           <div className='text-sm text-gray-500 truncate'>
-                            {statusText}
+                            {item.displayValue || statusText}
                           </div>
                         </div>
                       </div>

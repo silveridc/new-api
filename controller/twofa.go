@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/middleware"
@@ -108,6 +109,19 @@ func Get2FAStatus(c *gin.Context) {
 				status["backup_codes_remaining"] = backupCount
 			}
 		}
+	}
+
+	if state, err := model.GetUserVerificationState(userId); err == nil {
+		status["login_methods"] = twoFALoginMethods(userId, state)
+	} else {
+		status["login_methods"] = []string{}
+	}
+	if user, err := model.GetUserById(userId, false); err == nil {
+		skip := user.GetSetting().TwoFASkipMethods
+		if skip == nil {
+			skip = []string{}
+		}
+		status["skip_methods"] = skip
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -222,4 +236,96 @@ func AdminDisable2FA(c *gin.Context) {
 	})
 
 	common.ApiSuccessT(c, "Two-factor authentication reset", nil)
+}
+
+// twoFALoginMethods lists the login methods the user can reach an account
+// with. Method keys match loginMethodFromContext on the login routes.
+func twoFALoginMethods(userId int, state *model.UserVerificationState) []string {
+	methods := make([]string, 0, 8)
+	if state.HasPassword {
+		methods = append(methods, "password")
+	}
+	if state.HasPasskey {
+		methods = append(methods, "passkey")
+	}
+	if user, err := model.GetUserById(userId, false); err == nil {
+		for _, binding := range []struct {
+			id     string
+			method string
+		}{
+			{user.GitHubId, "oauth:github"},
+			{user.DiscordId, "oauth:discord"},
+			{user.OidcId, "oauth:oidc"},
+			{user.LinuxDOId, "oauth:linuxdo"},
+			{user.WeChatId, "wechat"},
+			{user.TelegramId, "telegram"},
+		} {
+			if binding.id != "" {
+				methods = append(methods, binding.method)
+			}
+		}
+	}
+	if bindings, err := model.GetUserOAuthBindingsByUserId(userId); err == nil {
+		for _, binding := range bindings {
+			provider, err := model.GetCustomOAuthProviderById(binding.ProviderId)
+			if err == nil && provider.Slug != "" {
+				methods = append(methods, "oauth:"+provider.Slug)
+			}
+		}
+	}
+	return methods
+}
+
+// UpdateTwoFALoginMethods stores which login methods skip the TOTP step. The
+// value only takes effect while two-factor authentication is enabled.
+func UpdateTwoFALoginMethods(c *gin.Context) {
+	if middleware.RequireSecurityProof(c, service.VerificationOperation{Scope: service.VerificationScopeTwoFALoginMethods}) == nil {
+		return
+	}
+	identity, _ := middleware.GetStepUpIdentity(c)
+	var request struct {
+		SkipMethods []string `json:"skip_methods"`
+	}
+	if err := common.DecodeJson(c.Request.Body, &request); err != nil {
+		common.ApiErrorT(c, "Invalid parameters")
+		return
+	}
+	state, err := model.GetUserVerificationState(identity.UserID)
+	if err != nil {
+		writeSecurityOperationError(c, err)
+		return
+	}
+	available := twoFALoginMethods(identity.UserID, state)
+	allowed := make(map[string]bool, len(available))
+	for _, method := range available {
+		allowed[method] = true
+	}
+	normalized := make([]string, 0, len(request.SkipMethods))
+	seen := make(map[string]bool, len(request.SkipMethods))
+	for _, raw := range request.SkipMethods {
+		method := strings.ToLower(strings.TrimSpace(raw))
+		if !allowed[method] || seen[method] {
+			common.ApiErrorT(c, "Invalid login method")
+			return
+		}
+		seen[method] = true
+		normalized = append(normalized, method)
+	}
+	user, err := model.GetUserById(identity.UserID, false)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	settings := user.GetSetting()
+	settings.TwoFASkipMethods = normalized
+	if err := model.UpdateUserSetting(user.Id, settings); err != nil {
+		common.ApiErrorT(c, "Update failed")
+		return
+	}
+	methodsText := strings.Join(normalized, ", ")
+	if methodsText == "" {
+		methodsText = "none"
+	}
+	recordUserSecurityAudit(c, user.Id, "user.2fa_login_methods", map[string]any{"skip_methods": normalized, "methods": methodsText})
+	common.ApiSuccess(c, gin.H{"skip_methods": normalized})
 }

@@ -87,6 +87,7 @@ type User struct {
 	Status               int                        `json:"status" gorm:"type:int;default:1"` // enabled, disabled
 	Email                string                     `json:"email" gorm:"index" validate:"max=50"`
 	GitHubId             string                     `json:"github_id" gorm:"column:github_id;index"`
+	GitHubLogin          string                     `json:"github_login" gorm:"column:github_login;size:128"`
 	DiscordId            string                     `json:"discord_id" gorm:"column:discord_id;index"`
 	OidcId               string                     `json:"oidc_id" gorm:"column:oidc_id;index"`
 	WeChatId             string                     `json:"wechat_id" gorm:"column:wechat_id;index"`
@@ -211,6 +212,19 @@ var userBindColumns = map[string]bool{
 // 绑定操作必须只写绑定列：若改为“读取完整用户 → 改一个字段 → 整体更新”，
 // 读快照期间并发发生的封禁、降权或分组变更会被旧快照覆盖恢复。
 // 角色、状态、分组只允许通过各自带锁/CAS 的专用方法修改。
+// SetUserGitHubLogin caches the GitHub login name next to the numeric account
+// ID so administrators can identify a binding without calling GitHub.
+func SetUserGitHubLogin(userId int, login string) error {
+	if userId <= 0 {
+		return common.NewMessage("ID is empty!")
+	}
+	login = strings.TrimSpace(login)
+	if login == "" || len(login) > 128 {
+		return fmt.Errorf("invalid GitHub login")
+	}
+	return DB.Model(&User{}).Where("id = ?", userId).Update("github_login", login).Error
+}
+
 func UpdateUserBindColumn(userId int, column string, value string) error {
 	if userId <= 0 {
 		return common.NewMessage("ID is empty!")
@@ -530,7 +544,7 @@ func GetSelfUserById(id int) (*User, error) {
 	}
 	err := DB.Model(&User{}).Select([]string{
 		"id", "username", "display_name", "role", "status", "email",
-		"github_id", "discord_id", "oidc_id", "wechat_id", "telegram_id",
+		"github_id", "github_login", "discord_id", "oidc_id", "wechat_id", "telegram_id",
 		"group", "quota", "used_quota", "request_count", "aff_code", "aff_count",
 		"aff_quota", "aff_history", "inviter_id", "linux_do_id", "setting",
 		"stripe_customer", "auth_version",
