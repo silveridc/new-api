@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 
 import React, { useEffect, useRef } from 'react';
 import { Typography } from '@douyinfe/semi-ui';
-import MarkdownRenderer from '../common/markdown/MarkdownRenderer';
+import LazyMarkdownRenderer from '../common/markdown/LazyMarkdownRenderer';
 import { ChevronRight, ChevronUp, Brain, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -162,7 +162,7 @@ const ThinkingContent = ({
               }}
             >
               <div className='prose prose-xs sm:prose-sm prose-purple max-w-none text-xs sm:text-sm'>
-                <MarkdownRenderer
+                <LazyMarkdownRenderer
                   content={finalExtractedThinkingContent}
                   className=''
                   animated={isThinkingStatus}

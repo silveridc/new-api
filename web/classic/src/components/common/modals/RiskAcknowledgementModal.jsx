@@ -28,7 +28,7 @@ import {
 } from '@douyinfe/semi-ui';
 import { IconAlertTriangle } from '@douyinfe/semi-icons';
 import { useIsMobile } from '../../../hooks/common/useIsMobile';
-import MarkdownRenderer from '../markdown/MarkdownRenderer';
+import LazyMarkdownRenderer from '../markdown/LazyMarkdownRenderer';
 
 const { Text } = Typography;
 
@@ -48,7 +48,7 @@ const RiskMarkdownBlock = React.memo(function RiskMarkdownBlock({
         contentVisibility: 'auto',
       }}
     >
-      <MarkdownRenderer content={markdownContent} />
+      <LazyMarkdownRenderer content={markdownContent} />
     </div>
   );
 });

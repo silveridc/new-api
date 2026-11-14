@@ -41,12 +41,15 @@ import { OAuthSection } from '../oauth-section'
 
 const defaults: ComponentProps<typeof OAuthSection>['defaultValues'] = {
   GitHubOAuthEnabled: false,
+  GitHubOAuthRegisterEnabled: true,
   GitHubClientId: '',
   GitHubClientSecret: '',
   'discord.enabled': false,
+  'discord.register_enabled': true,
   'discord.client_id': '',
   'discord.client_secret': '',
   'oidc.enabled': false,
+  'oidc.register_enabled': true,
   'oidc.display_name': '',
   'oidc.client_id': '',
   'oidc.client_secret': '',
@@ -55,13 +58,16 @@ const defaults: ComponentProps<typeof OAuthSection>['defaultValues'] = {
   'oidc.token_endpoint': '',
   'oidc.user_info_endpoint': '',
   TelegramOAuthEnabled: false,
+  TelegramOAuthRegisterEnabled: true,
   'telegram.client_id': '',
   'telegram.client_secret': '',
   LinuxDOOAuthEnabled: false,
+  LinuxDOOAuthRegisterEnabled: true,
   LinuxDOClientId: '',
   LinuxDOClientSecret: '',
   LinuxDOMinimumTrustLevel: '',
   WeChatAuthEnabled: false,
+  WeChatAuthRegisterEnabled: true,
   WeChatServerAddress: '',
   WeChatServerToken: '',
   WeChatAccountQRCodeImageURL: '',
@@ -166,6 +172,21 @@ describe('OAuth settings saves', () => {
     expect(infoToast).toHaveBeenCalledWith('No changes to save')
     expect(discovery).not.toHaveBeenCalled()
     expect(api.put).not.toHaveBeenCalled()
+  })
+
+  it('saves the GitHub registration switch independently of login', async () => {
+    const user = userEvent.setup()
+    await renderSettings({ GitHubOAuthEnabled: true })
+    await user.click(screen.getByRole('switch', { name: 'Allow registration' }))
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    await waitFor(() =>
+      expect(api.put).toHaveBeenCalledWith('/api/option/', {
+        key: 'GitHubOAuthRegisterEnabled',
+        value: false,
+      })
+    )
+    expect(api.put).toHaveBeenCalledTimes(1)
   })
 
   it('allows disabling OIDC even when its saved discovery URL is invalid', async () => {

@@ -151,6 +151,7 @@ export interface ChannelOtherSettings {
   advanced_custom?: AdvancedCustomConfig
   /** The values of the bound plugin's channel settings (type 61). */
   plugin_config?: Record<string, unknown>
+  model_groups?: Record<string, string[]>
 }
 
 export interface AdvancedCustomConfig {

@@ -41,6 +41,10 @@ func (p *LinuxDOProvider) IsEnabled() bool {
 	return common.LinuxDOOAuthEnabled
 }
 
+func (p *LinuxDOProvider) IsRegisterEnabled() bool {
+	return common.LinuxDOOAuthRegisterEnabled
+}
+
 func (p *LinuxDOProvider) ExchangeToken(ctx context.Context, code string, c *gin.Context) (*OAuthToken, error) {
 	if code == "" {
 		return nil, NewOAuthError(common.NewMessage(msgInvalidCode))

@@ -133,7 +133,13 @@ describe('useModelPricingEditorState 增量保存（PATCH /api/option/model_pric
     });
 
     await act(async () => {
-      await result.current.handleSubmit();
+      result.current.handleSubmit();
+    });
+    expect(API.patch).not.toHaveBeenCalled();
+    expect(result.current.priceReview).toHaveLength(1);
+
+    await act(async () => {
+      await result.current.confirmPriceReview();
     });
 
     expect(API.patch).toHaveBeenCalledTimes(1);
@@ -179,7 +185,10 @@ describe('useModelPricingEditorState 增量保存（PATCH /api/option/model_pric
     });
 
     await act(async () => {
-      await result.current.handleSubmit();
+      result.current.handleSubmit();
+    });
+    await act(async () => {
+      await result.current.confirmPriceReview();
     });
 
     expect(API.patch).toHaveBeenCalledTimes(1);
@@ -209,7 +218,10 @@ describe('useModelPricingEditorState 增量保存（PATCH /api/option/model_pric
     });
 
     await act(async () => {
-      await result.current.handleSubmit();
+      result.current.handleSubmit();
+    });
+    await act(async () => {
+      await result.current.confirmPriceReview();
     });
 
     expect(showError).toHaveBeenCalledWith('model pricing changed; reload');

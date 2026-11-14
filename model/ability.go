@@ -8,6 +8,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/dto"
+	relaydto "github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 
 	"github.com/samber/lo"
@@ -28,6 +29,14 @@ type Ability struct {
 type AbilityWithChannel struct {
 	Ability
 	ChannelType int `json:"channel_type"`
+}
+
+func getAbilityGroups(model string, defaultGroups []string, modelGroups relaydto.ChannelModelGroups) []string {
+	groups, ok := modelGroups[strings.TrimSpace(model)]
+	if !ok || len(groups) == 0 {
+		return defaultGroups
+	}
+	return groups
 }
 
 func GetAllEnableAbilityWithChannels() ([]AbilityWithChannel, error) {
@@ -224,11 +233,14 @@ func identityFilterRequiresKey(filters []dto.ChannelFilter) bool {
 
 func (channel *Channel) AddAbilities(tx *gorm.DB) error {
 	models_ := strings.Split(channel.Models, ",")
-	groups_ := strings.Split(channel.Group, ",")
+	groups_ := channel.GetGroups()
+	modelGroups := channel.GetOtherSettings().ModelGroups
 	abilitySet := make(map[string]struct{})
 	abilities := make([]Ability, 0, len(models_))
 	for _, model := range models_ {
-		for _, group := range groups_ {
+		model = strings.TrimSpace(model)
+		for _, group := range getAbilityGroups(model, groups_, modelGroups) {
+			group = strings.TrimSpace(group)
 			key := group + "|" + model
 			if _, exists := abilitySet[key]; exists {
 				continue
@@ -296,11 +308,14 @@ func (channel *Channel) UpdateAbilities(tx *gorm.DB) error {
 
 	// Then add new abilities
 	models_ := channel.GetModels()
-	groups_ := strings.Split(channel.Group, ",")
+	groups_ := channel.GetGroups()
+	modelGroups := channel.GetOtherSettings().ModelGroups
 	abilitySet := make(map[string]struct{})
 	abilities := make([]Ability, 0, len(models_))
 	for _, model := range models_ {
-		for _, group := range groups_ {
+		model = strings.TrimSpace(model)
+		for _, group := range getAbilityGroups(model, groups_, modelGroups) {
+			group = strings.TrimSpace(group)
 			key := group + "|" + model
 			if _, exists := abilitySet[key]; exists {
 				continue

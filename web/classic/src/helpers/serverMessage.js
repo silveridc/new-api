@@ -431,6 +431,7 @@ const SERVER_MESSAGE_TRANSLATIONS = {
   "rule_name cannot be empty": "rule_name 不能为空",
   "{{name}} called {{count}} times, cost {{quota}}": "{{name}} 调用 {{count}} 次，调用花费 {{quota}}",
   "{{provider}} login and registration has not been enabled by administrator": "管理员未开启通过 {{provider}} 登录以及注册",
+  "{{provider}} registration has been disabled by administrator": "管理员已关闭通过 {{provider}} 注册",
   "{{provider}} top-up succeeded, amount added: {{quota}}, payment amount: {{amount}}": "{{provider}} 充值成功，充值额度: {{quota}}，支付金额: {{amount}}",
   // oauth/types.go 的 7 条授权登录错误文案：后端下发 message_key + message_params，
   // 缺 provider/field 时中文会露出占位符，所以必须成对补齐。

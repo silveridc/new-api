@@ -81,7 +81,7 @@ func WeChatAuth(c *gin.Context) {
 			return
 		}
 	} else {
-		if common.RegisterEnabled {
+		if common.RegisterEnabled && common.WeChatAuthRegisterEnabled {
 			user.Username = "wechat_" + strconv.Itoa(model.GetMaxUserId()+1)
 			user.DisplayName = "WeChat User"
 			user.Role = common.RoleCommonUser
@@ -91,8 +91,11 @@ func WeChatAuth(c *gin.Context) {
 				common.ApiError(c, err)
 				return
 			}
-		} else {
+		} else if !common.RegisterEnabled {
 			common.ApiErrorT(c, "New user registration has been disabled by administrator")
+			return
+		} else {
+			common.ApiErrorT(c, "{{provider}} registration has been disabled by administrator", providerParams("WeChat"))
 			return
 		}
 	}

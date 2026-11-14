@@ -17,33 +17,18 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { Suspense, lazy } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Banner,
-  Button,
-  Modal,
-  Spin,
-  Tag,
-  Typography,
-} from '@douyinfe/semi-ui';
+import { Banner, Button, Modal, Tag, Typography } from '@douyinfe/semi-ui';
 
 import {
   getSystemReleaseUrl,
   getUpdateErrorMessage,
   parseSystemVersion,
 } from '../../services/systemUpdate';
+import LazyMarkdownRenderer from './markdown/LazyMarkdownRenderer';
 
 const { Text } = Typography;
-
-// 发行说明要渲染 Markdown，而 MarkdownRenderer 会拖进 mermaid/katex/highlight.js。
-// 顶栏按钮是全站挂载的，所以这里必须懒加载：只有真正打开对话框才拉那个 chunk
-// （对齐新版 system-update-dialog.tsx 的 lazy(() => import('@/components/ui/markdown'))）。
-const MarkdownRenderer = lazy(() =>
-  import('./markdown/MarkdownRenderer').then((module) => ({
-    default: module.MarkdownRenderer,
-  })),
-);
 
 /**
  * 系统更新对话框，字段与状态文案对齐新版 system-update-dialog.tsx。
@@ -200,23 +185,15 @@ const SystemUpdateDialog = ({ visible, onCancel, update }) => {
           </Text>
         )}
 
-        {visible && release && (
-          <Suspense
-            fallback={
-              <div className='flex justify-center py-6'>
-                <Spin />
-              </div>
-            }
-          >
-            {release.body ? (
-              <MarkdownRenderer content={release.body} fontSize={13} />
-            ) : (
-              <Text type='tertiary' size='small'>
-                {t('该发行版没有说明内容。')}
-              </Text>
-            )}
-          </Suspense>
-        )}
+        {visible &&
+          release &&
+          (release.body ? (
+            <LazyMarkdownRenderer content={release.body} fontSize={13} />
+          ) : (
+            <Text type='tertiary' size='small'>
+              {t('该发行版没有说明内容。')}
+            </Text>
+          ))}
       </div>
     </Modal>
   );

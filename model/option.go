@@ -43,9 +43,13 @@ func InitOptionMap() {
 	common.OptionMap["PasswordRegisterEnabled"] = strconv.FormatBool(common.PasswordRegisterEnabled)
 	common.OptionMap["EmailVerificationEnabled"] = strconv.FormatBool(common.EmailVerificationEnabled)
 	common.OptionMap["GitHubOAuthEnabled"] = strconv.FormatBool(common.GitHubOAuthEnabled)
+	common.OptionMap["GitHubOAuthRegisterEnabled"] = strconv.FormatBool(common.GitHubOAuthRegisterEnabled)
 	common.OptionMap["LinuxDOOAuthEnabled"] = strconv.FormatBool(common.LinuxDOOAuthEnabled)
+	common.OptionMap["LinuxDOOAuthRegisterEnabled"] = strconv.FormatBool(common.LinuxDOOAuthRegisterEnabled)
 	common.OptionMap["TelegramOAuthEnabled"] = strconv.FormatBool(common.TelegramOAuthEnabled)
+	common.OptionMap["TelegramOAuthRegisterEnabled"] = strconv.FormatBool(common.TelegramOAuthRegisterEnabled)
 	common.OptionMap["WeChatAuthEnabled"] = strconv.FormatBool(common.WeChatAuthEnabled)
+	common.OptionMap["WeChatAuthRegisterEnabled"] = strconv.FormatBool(common.WeChatAuthRegisterEnabled)
 	common.OptionMap["TurnstileCheckEnabled"] = strconv.FormatBool(common.TurnstileCheckEnabled)
 	common.OptionMap["RecaptchaCheckEnabled"] = strconv.FormatBool(common.RecaptchaCheckEnabled)
 	common.OptionMap["RegisterEnabled"] = strconv.FormatBool(common.RegisterEnabled)
@@ -430,12 +434,20 @@ func updateOptionMap(key string, value string) (err error) {
 			common.EmailVerificationEnabled = boolValue
 		case "GitHubOAuthEnabled":
 			common.GitHubOAuthEnabled = boolValue
+		case "GitHubOAuthRegisterEnabled":
+			common.GitHubOAuthRegisterEnabled = boolValue
 		case "LinuxDOOAuthEnabled":
 			common.LinuxDOOAuthEnabled = boolValue
+		case "LinuxDOOAuthRegisterEnabled":
+			common.LinuxDOOAuthRegisterEnabled = boolValue
 		case "WeChatAuthEnabled":
 			common.WeChatAuthEnabled = boolValue
+		case "WeChatAuthRegisterEnabled":
+			common.WeChatAuthRegisterEnabled = boolValue
 		case "TelegramOAuthEnabled":
 			common.TelegramOAuthEnabled = boolValue
+		case "TelegramOAuthRegisterEnabled":
+			common.TelegramOAuthRegisterEnabled = boolValue
 		case "TurnstileCheckEnabled":
 			common.TurnstileCheckEnabled = boolValue
 		case "RecaptchaCheckEnabled":

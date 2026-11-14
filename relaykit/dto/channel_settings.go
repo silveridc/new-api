@@ -158,6 +158,8 @@ const (
 	AwsApiTypeMantle      AwsApiType = "mantle"
 )
 
+type ChannelModelGroups map[string][]string
+
 type ChannelOtherSettings struct {
 	AzureResponsesVersion                 string                `json:"azure_responses_version,omitempty"`
 	VertexKeyType                         VertexKeyType         `json:"vertex_key_type,omitempty"`    // "json" or "api_key"
@@ -193,6 +195,7 @@ type ChannelOtherSettings struct {
 	// channel-level gate for the models they name.
 	Quota       *ChannelQuotaLimit  `json:"quota,omitempty"`
 	ModelQuotas []ChannelModelQuota `json:"model_quotas,omitempty"`
+	ModelGroups ChannelModelGroups  `json:"model_groups,omitempty"`
 	// UpstreamRatio is the channel default cost multiplier reported by the
 	// upstream; ModelUpstreamRatios override it per model.
 	UpstreamRatio       float64                `json:"upstream_ratio,omitempty"`

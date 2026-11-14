@@ -11,7 +11,9 @@
   "singleQuote": true,
   "sortImports": true,
   "sortPackageJson": true,
-  "sortTailwindcss": true,
+  "sortTailwindcss": {
+    "stylesheet": "node_modules/tailwindcss/theme.css"
+  },
   "tabWidth": 2,
   "trailingComma": "es5",
   "ignorePatterns": [

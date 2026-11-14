@@ -78,6 +78,13 @@ var GitHubOAuthEnabled = false
 var LinuxDOOAuthEnabled = false
 var WeChatAuthEnabled = false
 var TelegramOAuthEnabled = false
+
+// 每个 OAuth 提供商的注册开关，默认开启以保持历史行为：
+// 提供商启用但注册关闭时，已绑定账号仍可登录，只是不再自动建号。
+var GitHubOAuthRegisterEnabled = true
+var LinuxDOOAuthRegisterEnabled = true
+var WeChatAuthRegisterEnabled = true
+var TelegramOAuthRegisterEnabled = true
 var TurnstileCheckEnabled = false
 var RecaptchaCheckEnabled = false
 var RegisterEnabled = true

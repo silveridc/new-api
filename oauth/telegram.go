@@ -104,6 +104,10 @@ func (p *TelegramProvider) GetName() string { return "Telegram" }
 
 func (p *TelegramProvider) IsEnabled() bool { return TelegramConfigurationError() == nil }
 
+func (p *TelegramProvider) IsRegisterEnabled() bool {
+	return common.TelegramOAuthRegisterEnabled
+}
+
 func (p *TelegramProvider) ExchangeToken(ctx context.Context, code string, c *gin.Context) (*OAuthToken, error) {
 	if err := TelegramConfigurationError(); err != nil {
 		return nil, err

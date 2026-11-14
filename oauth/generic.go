@@ -82,6 +82,11 @@ func (p *GenericOAuthProvider) IsEnabled() bool {
 	return p.config.Enabled
 }
 
+// 自定义提供商没有独立的注册开关，注册跟随其启用状态。
+func (p *GenericOAuthProvider) IsRegisterEnabled() bool {
+	return p.config.Enabled
+}
+
 func (p *GenericOAuthProvider) GetConfig() *model.CustomOAuthProvider {
 	return p.config
 }

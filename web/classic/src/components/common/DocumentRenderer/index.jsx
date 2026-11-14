@@ -26,7 +26,7 @@ import {
   IllustrationConstructionDark,
 } from '@douyinfe/semi-illustrations';
 import { useTranslation } from 'react-i18next';
-import MarkdownRenderer from '../markdown/MarkdownRenderer';
+import LazyMarkdownRenderer from '../markdown/LazyMarkdownRenderer';
 
 // Check whether content is a URL.
 const isUrl = (content) => {
@@ -221,7 +221,7 @@ const DocumentRenderer = ({ apiEndpoint, title, cacheKey, emptyMessage }) => {
             {title}
           </Title>
           <div className='prose prose-lg max-w-none'>
-            <MarkdownRenderer content={content} />
+            <LazyMarkdownRenderer content={content} />
           </div>
         </div>
       </div>

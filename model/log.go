@@ -287,6 +287,12 @@ func RecordErrorLog(c *gin.Context, userId int, channelId int, modelName string,
 	username := c.GetString("username")
 	requestId := c.GetString(common.RequestIdKey)
 	upstreamRequestId := c.GetString(common.UpstreamRequestIdKey)
+	if ua := c.Request.UserAgent(); ua != "" {
+		if other == nil {
+			other = NewLogOther()
+		}
+		other.SetPublic("user_agent", ua)
+	}
 	otherStr := other.JSONString()
 	// 判断是否需要记录 IP：管理员全局开关强制记录，否则跟随用户自身设置
 	needRecordIp := common.RecordIpLogEnabled
@@ -357,6 +363,12 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 	upstreamRequestId := c.GetString(common.UpstreamRequestIdKey)
 	createdAt := common.GetTimestamp()
 	other := params.Other
+	if ua := c.Request.UserAgent(); ua != "" {
+		if other == nil {
+			other = NewLogOther()
+		}
+		other.SetPublic("user_agent", ua)
+	}
 	content := other.setContent(params.Content)
 	otherStr := other.JSONString()
 	// 判断是否需要记录 IP：管理员全局开关强制记录，否则跟随用户自身设置

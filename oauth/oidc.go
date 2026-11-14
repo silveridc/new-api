@@ -49,6 +49,10 @@ func (p *OIDCProvider) IsEnabled() bool {
 	return system_setting.GetOIDCSettings().Enabled
 }
 
+func (p *OIDCProvider) IsRegisterEnabled() bool {
+	return system_setting.GetOIDCSettings().RegisterEnabled
+}
+
 // oidcBodyPreview 限制写进日志的响应长度：IdP 出错时可能返回整页 HTML。
 func oidcBodyPreview(body []byte) string {
 	const limit = 512

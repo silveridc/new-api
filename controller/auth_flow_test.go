@@ -642,8 +642,9 @@ type authFlowTestOAuthProvider struct {
 	userInfoCalls int
 }
 
-func (*authFlowTestOAuthProvider) GetName() string { return "Auth Flow Test" }
-func (*authFlowTestOAuthProvider) IsEnabled() bool { return true }
+func (*authFlowTestOAuthProvider) GetName() string         { return "Auth Flow Test" }
+func (*authFlowTestOAuthProvider) IsEnabled() bool         { return true }
+func (*authFlowTestOAuthProvider) IsRegisterEnabled() bool { return true }
 func (provider *authFlowTestOAuthProvider) ExchangeToken(context.Context, string, *gin.Context) (*oauth.OAuthToken, error) {
 	provider.exchangeCalls++
 	if provider.exchangeErr != nil {
@@ -685,6 +686,31 @@ func setupAuthFlowControllerTest(t *testing.T) *authFlowTestOAuthProvider {
 	})
 	return provider
 }
+
+func TestOAuthProviderRegistrationDisabledRejectsNewAccount(t *testing.T) {
+	setupAuthFlowControllerTest(t)
+	previousRegister := common.RegisterEnabled
+	common.RegisterEnabled = true
+	t.Cleanup(func() { common.RegisterEnabled = previousRegister })
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/oauth/callback", nil)
+
+	_, _, err := findOrCreateOAuthUser(c, &registerDisabledOAuthProvider{}, &oauth.OAuthUser{ProviderUserID: "new-user"}, &oauth.OAuthToken{}, "")
+	var disabledErr *OAuthProviderRegistrationDisabledError
+	require.ErrorAs(t, err, &disabledErr)
+
+	var count int64
+	require.NoError(t, model.DB.Model(&model.User{}).Count(&count).Error)
+	assert.Zero(t, count)
+}
+
+type registerDisabledOAuthProvider struct {
+	authFlowTestOAuthProvider
+}
+
+func (*registerDisabledOAuthProvider) IsRegisterEnabled() bool { return false }
 
 func TestGenerateOAuthCodeCarriesAffiliateInLoginFlow(t *testing.T) {
 	setupAuthFlowControllerTest(t)

@@ -49,6 +49,10 @@ func (p *GitHubProvider) IsEnabled() bool {
 	return common.GitHubOAuthEnabled
 }
 
+func (p *GitHubProvider) IsRegisterEnabled() bool {
+	return common.GitHubOAuthRegisterEnabled
+}
+
 func (p *GitHubProvider) ExchangeToken(ctx context.Context, code string, c *gin.Context) (*OAuthToken, error) {
 	if code == "" {
 		return nil, NewOAuthError(common.NewMessage(msgInvalidCode))

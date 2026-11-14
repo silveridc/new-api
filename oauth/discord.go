@@ -46,6 +46,10 @@ func (p *DiscordProvider) IsEnabled() bool {
 	return system_setting.GetDiscordSettings().Enabled
 }
 
+func (p *DiscordProvider) IsRegisterEnabled() bool {
+	return system_setting.GetDiscordSettings().RegisterEnabled
+}
+
 func (p *DiscordProvider) ExchangeToken(ctx context.Context, code string, c *gin.Context) (*OAuthToken, error) {
 	if code == "" {
 		return nil, NewOAuthError(common.NewMessage(msgInvalidCode))

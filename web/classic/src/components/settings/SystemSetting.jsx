@@ -52,12 +52,15 @@ const SystemSetting = () => {
     PasswordRegisterEnabled: '',
     EmailVerificationEnabled: '',
     GitHubOAuthEnabled: '',
+    GitHubOAuthRegisterEnabled: '',
     GitHubClientId: '',
     GitHubClientSecret: '',
     'discord.enabled': '',
+    'discord.register_enabled': '',
     'discord.client_id': '',
     'discord.client_secret': '',
     'oidc.enabled': '',
+    'oidc.register_enabled': '',
     'oidc.client_id': '',
     'oidc.client_secret': '',
     'oidc.well_known': '',
@@ -78,6 +81,7 @@ const SystemSetting = () => {
     WorkerAllowHttpImageRequestEnabled: '',
     Footer: '',
     WeChatAuthEnabled: '',
+    WeChatAuthRegisterEnabled: '',
     WeChatServerAddress: '',
     WeChatServerToken: '',
     WeChatAccountQRCodeImageURL: '',
@@ -101,9 +105,11 @@ const SystemSetting = () => {
     SMTPForceAuthLogin: '',
     EmailDomainWhitelist: [],
     TelegramOAuthEnabled: '',
+    TelegramOAuthRegisterEnabled: '',
     TelegramBotToken: '',
     TelegramBotName: '',
     LinuxDOOAuthEnabled: '',
+    LinuxDOOAuthRegisterEnabled: '',
     LinuxDOClientId: '',
     LinuxDOClientSecret: '',
     LinuxDOMinimumTrustLevel: '',
@@ -186,8 +192,11 @@ const SystemSetting = () => {
           case 'PasswordRegisterEnabled':
           case 'EmailVerificationEnabled':
           case 'GitHubOAuthEnabled':
+          case 'GitHubOAuthRegisterEnabled':
           case 'WeChatAuthEnabled':
+          case 'WeChatAuthRegisterEnabled':
           case 'TelegramOAuthEnabled':
+          case 'TelegramOAuthRegisterEnabled':
           case 'RegisterEnabled':
           case 'TurnstileCheckEnabled':
           case 'RecaptchaCheckEnabled':
@@ -196,8 +205,11 @@ const SystemSetting = () => {
           case 'SMTPSSLEnabled':
           case 'SMTPForceAuthLogin':
           case 'LinuxDOOAuthEnabled':
+          case 'LinuxDOOAuthRegisterEnabled':
           case 'discord.enabled':
+          case 'discord.register_enabled':
           case 'oidc.enabled':
+          case 'oidc.register_enabled':
           case 'passkey.enabled':
           case 'passkey.allow_insecure_origin':
           case 'WorkerAllowHttpImageRequestEnabled':
@@ -1118,7 +1130,7 @@ const SystemSetting = () => {
                           handleCheckboxChange('GitHubOAuthEnabled', e)
                         }
                       >
-                        {t('允许通过 GitHub 账户登录 & 注册')}
+                        {t('允许通过 GitHub 账户登录')}
                       </Form.Checkbox>
                       <Form.Checkbox
                         field='discord.enabled'
@@ -1127,7 +1139,7 @@ const SystemSetting = () => {
                           handleCheckboxChange('discord.enabled', e)
                         }
                       >
-                        {t('允许通过 Discord 账户登录 & 注册')}
+                        {t('允许通过 Discord 账户登录')}
                       </Form.Checkbox>
                       <Form.Checkbox
                         field='LinuxDOOAuthEnabled'
@@ -1136,7 +1148,7 @@ const SystemSetting = () => {
                           handleCheckboxChange('LinuxDOOAuthEnabled', e)
                         }
                       >
-                        {t('允许通过 Linux DO 账户登录 & 注册')}
+                        {t('允许通过 Linux DO 账户登录')}
                       </Form.Checkbox>
                       <Form.Checkbox
                         field='WeChatAuthEnabled'
@@ -1145,7 +1157,7 @@ const SystemSetting = () => {
                           handleCheckboxChange('WeChatAuthEnabled', e)
                         }
                       >
-                        {t('允许通过微信登录 & 注册')}
+                        {t('允许通过微信登录')}
                       </Form.Checkbox>
                       <Form.Checkbox
                         field='TelegramOAuthEnabled'
@@ -1555,6 +1567,17 @@ const SystemSetting = () => {
                       />
                     </Col>
                   </Row>
+                  <div style={{ marginBottom: 12 }}>
+                    <Form.Checkbox
+                      field="['oidc.register_enabled']"
+                      noLabel
+                      onChange={(e) =>
+                        handleCheckboxChange('oidc.register_enabled', e)
+                      }
+                    >
+                      {t('允许注册')}
+                    </Form.Checkbox>
+                  </div>
                   <Button onClick={submitOIDCSettings}>
                     {t('保存 OIDC 设置')}
                   </Button>
@@ -1587,6 +1610,17 @@ const SystemSetting = () => {
                       />
                     </Col>
                   </Row>
+                  <div style={{ marginBottom: 12 }}>
+                    <Form.Checkbox
+                      field='GitHubOAuthRegisterEnabled'
+                      noLabel
+                      onChange={(e) =>
+                        handleCheckboxChange('GitHubOAuthRegisterEnabled', e)
+                      }
+                    >
+                      {t('允许注册')}
+                    </Form.Checkbox>
+                  </div>
                   <Button onClick={submitGitHubOAuth}>
                     {t('保存 GitHub OAuth 设置')}
                   </Button>
@@ -1618,6 +1652,17 @@ const SystemSetting = () => {
                       />
                     </Col>
                   </Row>
+                  <div style={{ marginBottom: 12 }}>
+                    <Form.Checkbox
+                      field='discord.register_enabled'
+                      noLabel
+                      onChange={(e) =>
+                        handleCheckboxChange('discord.register_enabled', e)
+                      }
+                    >
+                      {t('允许注册')}
+                    </Form.Checkbox>
+                  </div>
                   <Button onClick={submitDiscordOAuth}>
                     {t('保存 Discord OAuth 设置')}
                   </Button>
@@ -1672,6 +1717,20 @@ const SystemSetting = () => {
                       />
                     </Col>
                   </Row>
+                  <div style={{ marginBottom: 12 }}>
+                    <Form.Checkbox
+                      field='LinuxDOOAuthRegisterEnabled'
+                      noLabel
+                      onChange={(e) =>
+                        handleCheckboxChange(
+                          'LinuxDOOAuthRegisterEnabled',
+                          e,
+                        )
+                      }
+                    >
+                      {t('允许注册')}
+                    </Form.Checkbox>
+                  </div>
                   <Button onClick={submitLinuxDOOAuth}>
                     {t('保存 Linux DO OAuth 设置')}
                   </Button>
@@ -1707,6 +1766,17 @@ const SystemSetting = () => {
                       />
                     </Col>
                   </Row>
+                  <div style={{ marginBottom: 12 }}>
+                    <Form.Checkbox
+                      field='WeChatAuthRegisterEnabled'
+                      noLabel
+                      onChange={(e) =>
+                        handleCheckboxChange('WeChatAuthRegisterEnabled', e)
+                      }
+                    >
+                      {t('允许注册')}
+                    </Form.Checkbox>
+                  </div>
                   <Button onClick={submitWeChat}>
                     {t('保存 WeChat Server 设置')}
                   </Button>
@@ -1734,6 +1804,20 @@ const SystemSetting = () => {
                       />
                     </Col>
                   </Row>
+                  <div style={{ marginBottom: 12 }}>
+                    <Form.Checkbox
+                      field='TelegramOAuthRegisterEnabled'
+                      noLabel
+                      onChange={(e) =>
+                        handleCheckboxChange(
+                          'TelegramOAuthRegisterEnabled',
+                          e,
+                        )
+                      }
+                    >
+                      {t('允许注册')}
+                    </Form.Checkbox>
+                  </div>
                   <Button onClick={submitTelegramSettings}>
                     {t('保存 Telegram 登录设置')}
                   </Button>

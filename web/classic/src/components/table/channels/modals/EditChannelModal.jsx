@@ -67,6 +67,10 @@ import OllamaModelModal from './OllamaModelModal';
 import CodexOAuthModal from './CodexOAuthModal';
 import ParamOverrideEditorModal from './ParamOverrideEditorModal';
 import JSONEditor from '../../../common/ui/JSONEditor';
+import {
+  ModelQuotaOverridesEditor,
+  ModelUpstreamRatiosEditor,
+} from './ModelOverrideEditors';
 import SecureVerificationModal from '../../../common/modals/SecureVerificationModal';
 import StatusCodeRiskGuardModal from './StatusCodeRiskGuardModal';
 import {
@@ -2584,61 +2588,28 @@ const EditChannelModal = (props) => {
                     </div>
                   </div>
 
-                  <Form.TextArea
+                  <JSONEditor
                     field='header_override'
                     label={t('请求头覆盖')}
-                    placeholder={
-                      t('此项可选，用于覆盖请求头参数') +
-                      '\n' +
-                      t('格式示例：') +
-                      '\n{\n  "User-Agent": "Mozilla/5.0 ...",\n  "Authorization": "Bearer {api_key}"\n}'
+                    value={inputs.header_override || ''}
+                    onChange={(value) => handleInputChange('header_override', value)}
+                    template={{
+                      '*': true,
+                      're:^X-Trace-.*$': true,
+                      'X-Foo': '{client_header:X-Foo}',
+                      Authorization: 'Bearer {api_key}',
+                    }}
+                    templateLabel={t('填入模板')}
+                    extraFooter={
+                      <Text
+                        className='!text-semi-color-primary cursor-pointer'
+                        onClick={() =>
+                          handleInputChange('header_override', JSON.stringify({ '*': true }, null, 2))
+                        }
+                      >
+                        {t('填入透传模版')}
+                      </Text>
                     }
-                    autosize
-                    onChange={(value) =>
-                      handleInputChange('header_override', value)
-                    }
-                    extraText={
-                      <div className='flex flex-col gap-1'>
-                        <div className='flex gap-2 flex-wrap items-center'>
-                          <Text
-                            className='!text-semi-color-primary cursor-pointer'
-                            onClick={() =>
-                              handleInputChange(
-                                'header_override',
-                                JSON.stringify({ '*': true, 're:^X-Trace-.*$': true, 'X-Foo': '{client_header:X-Foo}', Authorization: 'Bearer {api_key}', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 Edg/139.0.0.0' }, null, 2),
-                              )
-                            }
-                          >
-                            {t('填入模板')}
-                          </Text>
-                          <Text
-                            className='!text-semi-color-primary cursor-pointer'
-                            onClick={() =>
-                              handleInputChange('header_override', JSON.stringify({ '*': true }, null, 2))
-                            }
-                          >
-                            {t('填入透传模版')}
-                          </Text>
-                          <Text
-                            className='!text-semi-color-primary cursor-pointer'
-                            onClick={() => formatJsonField('header_override')}
-                          >
-                            {t('格式化')}
-                          </Text>
-                        </div>
-                        <div>
-                          <Text type='tertiary' size='small'>
-                            {t('支持变量：')}
-                          </Text>
-                          <div className='text-xs text-tertiary ml-2'>
-                            <div>
-                              {t('渠道密钥')}: {'{api_key}'}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    }
-                    showClear
                   />
                   <JSONEditor
                     key={`status_code_mapping-${isEdit ? channelId : 'new'}`}
@@ -2922,13 +2893,9 @@ const EditChannelModal = (props) => {
                           </Button>
                         )}
                       </div>
-                      <Form.TextArea
-                        field='quota_model_overrides'
-                        label={t('模型额度覆盖（JSON）')}
-                        placeholder={'{\n  "gpt-4o": { "daily_limit": 10, "weekly_limit": 50, "total_limit": 200 }\n}'}
-                        autosize
+                      <ModelQuotaOverridesEditor
+                        value={inputs.quota_model_overrides || ''}
                         onChange={(value) => handleInputChange('quota_model_overrides', value || '')}
-                        extraText={t('可选。按模型覆盖上面的渠道级额度，未填写的维度继承渠道级设置')}
                       />
                     </>
                   )}
@@ -2941,13 +2908,9 @@ const EditChannelModal = (props) => {
                     style={{ width: '100%' }}
                     extraText={t('仅记录并用于成本展示，不影响用户计费；0 表示未配置')}
                   />
-                  <Form.TextArea
-                    field='upstream_model_ratios'
-                    label={t('模型上游倍率（JSON）')}
-                    placeholder={'{\n  "gpt-4o": 0.8\n}'}
-                    autosize
+                  <ModelUpstreamRatiosEditor
+                    value={inputs.upstream_model_ratios || ''}
                     onChange={(value) => handleInputChange('upstream_model_ratios', value || '')}
-                    extraText={t('可选。按模型覆盖渠道默认上游倍率')}
                   />
 
                   {inputs.type === 14 && (

@@ -1129,43 +1129,77 @@ export function useModelPricingEditorState({
     return true;
   };
 
-  const handleSubmit = async () => {
+  const [priceReview, setPriceReview] = useState(null);
+
+  const formatReviewValue = (value) => {
+    if (value === undefined || value === null || value === '') return t('空');
+    if (typeof value === 'object') return JSON.stringify(value);
+    return String(value);
+  };
+
+  const collectPricingChanges = () => {
+    // 与服务端快照对比，只提交 dirty 模型；未编辑的模型配置
+    // （含插件 override）保留在服务端，不再全量覆盖 option。
+    const snapshotEntries = pricingSnapshotRef.current;
+    const changes = [];
+    const review = [];
+
+    for (const model of models) {
+      const newValues = buildModelSerializedValues(model, t);
+      const oldValues = initialSerializedRef.current[model.name] || {};
+      const dirtyKeys = diffPricingValues(oldValues, newValues);
+      if (dirtyKeys.length === 0) {
+        continue;
+      }
+
+      const entry = snapshotEntries[model.name];
+      const pricing = { ...(entry?.configured || {}) };
+      dirtyKeys.forEach((key) => {
+        delete pricing[key];
+        if (newValues[key] !== undefined) {
+          pricing[key] = newValues[key];
+        }
+      });
+
+      const change = {
+        model_name: model.name,
+        expected_version: entry?.version ?? snapshotEmptyVersionRef.current,
+        pricing,
+      };
+      changes.push(change);
+      review.push({
+        name: model.name,
+        lines: dirtyKeys.map((key) => ({
+          key,
+          before: formatReviewValue(oldValues[key]),
+          after: formatReviewValue(newValues[key]),
+        })),
+        change,
+      });
+    }
+
+    return { changes, review };
+  };
+
+  const handleSubmit = () => {
+    const { changes, review } = collectPricingChanges();
+    if (changes.length === 0) {
+      showInfo(t('没有变更需要保存'));
+      return;
+    }
+    setPriceReview(review);
+  };
+
+  const cancelPriceReview = () => setPriceReview(null);
+
+  const confirmPriceReview = async () => {
+    const changes = (priceReview || []).map((item) => item.change);
+    if (changes.length === 0) {
+      setPriceReview(null);
+      return;
+    }
     setLoading(true);
     try {
-      // 与服务端快照对比，只提交 dirty 模型；未编辑的模型配置
-      // （含插件 override）保留在服务端，不再全量覆盖 option。
-      const snapshotEntries = pricingSnapshotRef.current;
-      const changes = [];
-
-      for (const model of models) {
-        const newValues = buildModelSerializedValues(model, t);
-        const oldValues = initialSerializedRef.current[model.name] || {};
-        const dirtyKeys = diffPricingValues(oldValues, newValues);
-        if (dirtyKeys.length === 0) {
-          continue;
-        }
-
-        const entry = snapshotEntries[model.name];
-        const pricing = { ...(entry?.configured || {}) };
-        dirtyKeys.forEach((key) => {
-          delete pricing[key];
-          if (newValues[key] !== undefined) {
-            pricing[key] = newValues[key];
-          }
-        });
-
-        changes.push({
-          model_name: model.name,
-          expected_version: entry?.version ?? snapshotEmptyVersionRef.current,
-          pricing,
-        });
-      }
-
-      if (changes.length === 0) {
-        showInfo(t('没有变更需要保存'));
-        return;
-      }
-
       let res;
       try {
         res = await API.patch('/api/option/model_pricing', { changes });
@@ -1182,6 +1216,7 @@ export function useModelPricingEditorState({
       }
 
       showSuccess(t('保存成功'));
+      setPriceReview(null);
       // 保存成功后同步服务端新版本，并刷新 option 数据重建基线
       await fetchPricingSnapshot();
       await refresh();
@@ -1218,6 +1253,9 @@ export function useModelPricingEditorState({
     handleBillingExprChange,
     handleRequestRuleExprChange,
     handleSubmit,
+    priceReview,
+    confirmPriceReview,
+    cancelPriceReview,
     addModel,
     deleteModel,
     applySelectedModelPricing,

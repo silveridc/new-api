@@ -531,6 +531,11 @@ export function DetailsDialog(props: DetailsDialogProps) {
   const isViolation = isViolationFeeLog(other)
   const isRefund = props.log.type === 6
   const isConsume = props.log.type === 2
+  const isError = props.log.type === 5
+  const requestUserAgent =
+    (isConsume || isError) && typeof other?.user_agent === 'string'
+      ? other.user_agent
+      : undefined
   const isTopup = props.log.type === 1
   const isManage = props.log.type === 3
   const isSubscription = other?.billing_source === 'subscription'
@@ -771,6 +776,10 @@ export function DetailsDialog(props: DetailsDialogProps) {
               }
               mono
             />
+          )}
+
+          {requestUserAgent && (
+            <DetailRow label={t('User Agent')} value={requestUserAgent} mono />
           )}
 
           {showTiming && props.log.use_time > 0 && (

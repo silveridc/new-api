@@ -879,6 +879,34 @@ export const getLogsColumns = ({
       },
     },
     {
+      key: COLUMN_KEYS.UA,
+      title: t('User Agent'),
+      dataIndex: 'ua',
+      render: (text, record) => {
+        if (!(record.type === 2 || record.type === 5)) {
+          return <></>;
+        }
+        const other = getLogOther(record.other);
+        const ua = typeof other?.user_agent === 'string' ? other.user_agent : '';
+        if (!ua) {
+          return <></>;
+        }
+        return (
+          <Tooltip content={ua}>
+            <span
+              className='inline-block max-w-[160px] truncate align-middle cursor-pointer text-xs'
+              title={ua}
+              onClick={(event) => {
+                copyText(event, ua);
+              }}
+            >
+              {ua}
+            </span>
+          </Tooltip>
+        );
+      },
+    },
+    {
       key: COLUMN_KEYS.RETRY,
       title: t('重试'),
       dataIndex: 'retry',

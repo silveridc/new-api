@@ -20,7 +20,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import axios from 'axios'
 import { ExternalLink } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, type Control, type Path } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import * as z from 'zod'
@@ -64,15 +64,18 @@ import {
  */
 const oauthSchema = z.object({
   GitHubOAuthEnabled: z.boolean(),
+  GitHubOAuthRegisterEnabled: z.boolean(),
   GitHubClientId: z.string(),
   GitHubClientSecret: z.string(),
   discord: z.object({
     enabled: z.boolean(),
+    register_enabled: z.boolean(),
     client_id: z.string(),
     client_secret: z.string(),
   }),
   oidc: z.object({
     enabled: z.boolean(),
+    register_enabled: z.boolean(),
     display_name: z.string(),
     client_id: z.string(),
     client_secret: z.string(),
@@ -82,12 +85,15 @@ const oauthSchema = z.object({
     user_info_endpoint: z.string(),
   }),
   TelegramOAuthEnabled: z.boolean(),
+  TelegramOAuthRegisterEnabled: z.boolean(),
   telegram: z.object({ client_id: z.string(), client_secret: z.string() }),
   LinuxDOOAuthEnabled: z.boolean(),
+  LinuxDOOAuthRegisterEnabled: z.boolean(),
   LinuxDOClientId: z.string(),
   LinuxDOClientSecret: z.string(),
   LinuxDOMinimumTrustLevel: z.string(),
   WeChatAuthEnabled: z.boolean(),
+  WeChatAuthRegisterEnabled: z.boolean(),
   WeChatServerAddress: z.string(),
   WeChatServerToken: z.string(),
   WeChatAccountQRCodeImageURL: z.string(),
@@ -97,12 +103,15 @@ type OAuthFormValues = z.infer<typeof oauthSchema>
 
 type FlatOAuthDefaults = {
   GitHubOAuthEnabled: boolean
+  GitHubOAuthRegisterEnabled: boolean
   GitHubClientId: string
   GitHubClientSecret: string
   'discord.enabled': boolean
+  'discord.register_enabled': boolean
   'discord.client_id': string
   'discord.client_secret': string
   'oidc.enabled': boolean
+  'oidc.register_enabled': boolean
   'oidc.display_name': string
   'oidc.client_id': string
   'oidc.client_secret': string
@@ -111,13 +120,16 @@ type FlatOAuthDefaults = {
   'oidc.token_endpoint': string
   'oidc.user_info_endpoint': string
   TelegramOAuthEnabled: boolean
+  TelegramOAuthRegisterEnabled: boolean
   'telegram.client_id': string
   'telegram.client_secret': string
   LinuxDOOAuthEnabled: boolean
+  LinuxDOOAuthRegisterEnabled: boolean
   LinuxDOClientId: string
   LinuxDOClientSecret: string
   LinuxDOMinimumTrustLevel: string
   WeChatAuthEnabled: boolean
+  WeChatAuthRegisterEnabled: boolean
   WeChatServerAddress: string
   WeChatServerToken: string
   WeChatAccountQRCodeImageURL: string
@@ -177,15 +189,18 @@ function OAuthSetupGuide(props: OAuthSetupGuideProps) {
 
 const buildFormDefaults = (defaults: FlatOAuthDefaults): OAuthFormValues => ({
   GitHubOAuthEnabled: defaults.GitHubOAuthEnabled,
+  GitHubOAuthRegisterEnabled: defaults.GitHubOAuthRegisterEnabled,
   GitHubClientId: defaults.GitHubClientId ?? '',
   GitHubClientSecret: defaults.GitHubClientSecret ?? '',
   discord: {
     enabled: defaults['discord.enabled'],
+    register_enabled: defaults['discord.register_enabled'],
     client_id: defaults['discord.client_id'] ?? '',
     client_secret: defaults['discord.client_secret'] ?? '',
   },
   oidc: {
     enabled: defaults['oidc.enabled'],
+    register_enabled: defaults['oidc.register_enabled'],
     display_name: defaults['oidc.display_name'] ?? '',
     client_id: defaults['oidc.client_id'] ?? '',
     client_secret: defaults['oidc.client_secret'] ?? '',
@@ -195,15 +210,18 @@ const buildFormDefaults = (defaults: FlatOAuthDefaults): OAuthFormValues => ({
     user_info_endpoint: defaults['oidc.user_info_endpoint'] ?? '',
   },
   TelegramOAuthEnabled: defaults.TelegramOAuthEnabled,
+  TelegramOAuthRegisterEnabled: defaults.TelegramOAuthRegisterEnabled,
   telegram: {
     client_id: defaults['telegram.client_id'] ?? '',
     client_secret: defaults['telegram.client_secret'] ?? '',
   },
   LinuxDOOAuthEnabled: defaults.LinuxDOOAuthEnabled,
+  LinuxDOOAuthRegisterEnabled: defaults.LinuxDOOAuthRegisterEnabled,
   LinuxDOClientId: defaults.LinuxDOClientId ?? '',
   LinuxDOClientSecret: defaults.LinuxDOClientSecret ?? '',
   LinuxDOMinimumTrustLevel: defaults.LinuxDOMinimumTrustLevel ?? '',
   WeChatAuthEnabled: defaults.WeChatAuthEnabled,
+  WeChatAuthRegisterEnabled: defaults.WeChatAuthRegisterEnabled,
   WeChatServerAddress: defaults.WeChatServerAddress ?? '',
   WeChatServerToken: defaults.WeChatServerToken ?? '',
   WeChatAccountQRCodeImageURL: defaults.WeChatAccountQRCodeImageURL ?? '',
@@ -211,12 +229,15 @@ const buildFormDefaults = (defaults: FlatOAuthDefaults): OAuthFormValues => ({
 
 const normalizeFormValues = (values: OAuthFormValues): FlatOAuthDefaults => ({
   GitHubOAuthEnabled: values.GitHubOAuthEnabled,
+  GitHubOAuthRegisterEnabled: values.GitHubOAuthRegisterEnabled,
   GitHubClientId: values.GitHubClientId,
   GitHubClientSecret: values.GitHubClientSecret,
   'discord.enabled': values.discord.enabled,
+  'discord.register_enabled': values.discord.register_enabled,
   'discord.client_id': values.discord.client_id,
   'discord.client_secret': values.discord.client_secret,
   'oidc.enabled': values.oidc.enabled,
+  'oidc.register_enabled': values.oidc.register_enabled,
   'oidc.display_name': values.oidc.display_name,
   'oidc.client_id': values.oidc.client_id,
   'oidc.client_secret': values.oidc.client_secret,
@@ -227,15 +248,52 @@ const normalizeFormValues = (values: OAuthFormValues): FlatOAuthDefaults => ({
   'telegram.client_id': values.telegram.client_id,
   'telegram.client_secret': values.telegram.client_secret,
   TelegramOAuthEnabled: values.TelegramOAuthEnabled,
+  TelegramOAuthRegisterEnabled: values.TelegramOAuthRegisterEnabled,
   LinuxDOOAuthEnabled: values.LinuxDOOAuthEnabled,
+  LinuxDOOAuthRegisterEnabled: values.LinuxDOOAuthRegisterEnabled,
   LinuxDOClientId: values.LinuxDOClientId,
   LinuxDOClientSecret: values.LinuxDOClientSecret,
   LinuxDOMinimumTrustLevel: values.LinuxDOMinimumTrustLevel,
   WeChatAuthEnabled: values.WeChatAuthEnabled,
+  WeChatAuthRegisterEnabled: values.WeChatAuthRegisterEnabled,
   WeChatServerAddress: values.WeChatServerAddress,
   WeChatServerToken: values.WeChatServerToken,
   WeChatAccountQRCodeImageURL: values.WeChatAccountQRCodeImageURL,
 })
+
+type OAuthRegisterFieldName = Path<OAuthFormValues>
+
+// 六个提供商共用同一条“注册”开关：关闭后已有绑定仍可登录，只禁止自动建号。
+function OAuthRegisterSwitch(props: {
+  control: Control<OAuthFormValues>
+  name: OAuthRegisterFieldName
+}) {
+  const { t } = useTranslation()
+  return (
+    <FormField
+      control={props.control}
+      name={props.name}
+      render={({ field }) => (
+        <SettingsSwitchItem>
+          <SettingsSwitchContent>
+            <FormLabel>{t('Allow registration')}</FormLabel>
+            <FormDescription>
+              {t(
+                'Automatically create an account when an unbound user signs in with this provider.'
+              )}
+            </FormDescription>
+          </SettingsSwitchContent>
+          <FormControl>
+            <Switch
+              checked={field.value === true}
+              onCheckedChange={field.onChange}
+            />
+          </FormControl>
+        </SettingsSwitchItem>
+      )}
+    />
+  )
+}
 
 type OAuthSectionProps = {
   defaultValues: FlatOAuthDefaults
@@ -444,6 +502,11 @@ export function OAuthSection(props: OAuthSectionProps) {
                   )}
                 />
 
+                <OAuthRegisterSwitch
+                  control={form.control}
+                  name='GitHubOAuthRegisterEnabled'
+                />
+
                 <FormField
                   control={form.control}
                   name='GitHubClientId'
@@ -533,6 +596,11 @@ export function OAuthSection(props: OAuthSectionProps) {
                       </FormControl>
                     </SettingsSwitchItem>
                   )}
+                />
+
+                <OAuthRegisterSwitch
+                  control={form.control}
+                  name='discord.register_enabled'
                 />
 
                 <FormField
@@ -635,6 +703,11 @@ export function OAuthSection(props: OAuthSectionProps) {
                       </FormControl>
                     </SettingsSwitchItem>
                   )}
+                />
+
+                <OAuthRegisterSwitch
+                  control={form.control}
+                  name='oidc.register_enabled'
                 />
 
                 <FormField
@@ -857,6 +930,11 @@ export function OAuthSection(props: OAuthSectionProps) {
                   )}
                 />
 
+                <OAuthRegisterSwitch
+                  control={form.control}
+                  name='TelegramOAuthRegisterEnabled'
+                />
+
                 <FormField
                   control={form.control}
                   name='telegram.client_secret'
@@ -957,6 +1035,11 @@ export function OAuthSection(props: OAuthSectionProps) {
                   )}
                 />
 
+                <OAuthRegisterSwitch
+                  control={form.control}
+                  name='LinuxDOOAuthRegisterEnabled'
+                />
+
                 <FormField
                   control={form.control}
                   name='LinuxDOClientId'
@@ -1054,6 +1137,11 @@ export function OAuthSection(props: OAuthSectionProps) {
                       </FormControl>
                     </SettingsSwitchItem>
                   )}
+                />
+
+                <OAuthRegisterSwitch
+                  control={form.control}
+                  name='WeChatAuthRegisterEnabled'
                 />
 
                 <FormField

@@ -18,6 +18,18 @@ import (
 	"gorm.io/gorm"
 )
 
+func TestGetAbilityGroupsUsesModelOverrideAndFallsBackToChannelGroups(t *testing.T) {
+	defaults := []string{"default", "team"}
+	modelGroups := dto.ChannelModelGroups{
+		"gpt-4o": {"vip"},
+		"empty":  {},
+	}
+
+	assert.Equal(t, []string{"vip"}, getAbilityGroups("gpt-4o", defaults, modelGroups))
+	assert.Equal(t, defaults, getAbilityGroups("claude-sonnet", defaults, modelGroups))
+	assert.Equal(t, defaults, getAbilityGroups("empty", defaults, modelGroups))
+}
+
 func TestChannelValidateSettingsRejectsInvalidHTTPTransport(t *testing.T) {
 	tests := []struct {
 		name    string

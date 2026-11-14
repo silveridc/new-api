@@ -127,6 +127,9 @@ export default function ModelPricingEditor({
     handleBillingExprChange,
     handleRequestRuleExprChange,
     handleSubmit,
+    priceReview,
+    confirmPriceReview,
+    cancelPriceReview,
     addModel,
     deleteModel,
     applySelectedModelPricing,
@@ -746,6 +749,41 @@ export default function ModelPricingEditor({
           />
         </Modal>
       ) : null}
+
+      <Modal
+        title={t('确认价格变更')}
+        visible={Boolean(priceReview?.length)}
+        onCancel={cancelPriceReview}
+        onOk={confirmPriceReview}
+        okText={t('确认并保存')}
+        cancelText={t('取消')}
+        confirmLoading={loading}
+        width={720}
+      >
+        <Typography.Text type='tertiary'>
+          {t('保存后新价格会立即作用于请求。将变更 {{count}} 个模型。', {
+            count: priceReview?.length || 0,
+          })}
+        </Typography.Text>
+        <div className='mt-3 max-h-96 overflow-auto'>
+          {(priceReview || []).map((item) => (
+            <div key={item.name} className='mb-3 rounded border p-3'>
+              <Typography.Text strong>{item.name}</Typography.Text>
+              {item.lines.map((line) => (
+                <div key={line.key} className='mt-2 text-xs'>
+                  <div className='font-medium'>{line.key}</div>
+                  <div>
+                    {t('当前价格')}: {line.before}
+                  </div>
+                  <div>
+                    {t('保存后价格')}: {line.after}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </Modal>
 
       <Modal
         title={t('批量应用当前模型价格')}

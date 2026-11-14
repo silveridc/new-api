@@ -166,12 +166,15 @@ export type AuthSettings = {
   EmailDomainWhitelist: string
   ServerAddress: string
   GitHubOAuthEnabled: boolean
+  GitHubOAuthRegisterEnabled: boolean
   GitHubClientId: string
   GitHubClientSecret: string
   'discord.enabled': boolean
+  'discord.register_enabled': boolean
   'discord.client_id': string
   'discord.client_secret': string
   'oidc.enabled': boolean
+  'oidc.register_enabled': boolean
   'oidc.display_name': string
   'oidc.client_id': string
   'oidc.client_secret': string
@@ -180,15 +183,18 @@ export type AuthSettings = {
   'oidc.token_endpoint': string
   'oidc.user_info_endpoint': string
   TelegramOAuthEnabled: boolean
+  TelegramOAuthRegisterEnabled: boolean
   'telegram.client_id': string
   'telegram.client_secret': string
   TelegramBotToken: string
   TelegramBotName: string
   LinuxDOOAuthEnabled: boolean
+  LinuxDOOAuthRegisterEnabled: boolean
   LinuxDOClientId: string
   LinuxDOClientSecret: string
   LinuxDOMinimumTrustLevel: string
   WeChatAuthEnabled: boolean
+  WeChatAuthRegisterEnabled: boolean
   WeChatServerAddress: string
   WeChatServerToken: string
   WeChatAccountQRCodeImageURL: string

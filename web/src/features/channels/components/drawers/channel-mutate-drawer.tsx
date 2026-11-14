@@ -239,6 +239,10 @@ import {
   ModelMappingEditor,
   type ModelMappingDraftRequest,
 } from '../model-mapping-editor'
+import {
+  ModelQuotaOverridesEditor,
+  ModelUpstreamRatiosEditor,
+} from '../model-override-editors'
 import { ModelRedirectPanel } from '../model-redirect-panel'
 import { ResponsesWebSocketSetting } from '../responses-websocket-setting'
 import { UpstreamModelSelection } from '../upstream-model-selection'
@@ -842,6 +846,46 @@ export function ChannelMutateDrawer({
   const currentModelsArray = useMemo(
     () => parseModelsString(currentModels),
     [currentModels]
+  )
+
+  const currentModelGroups = useMemo(() => {
+    try {
+      const parsed = currentSettings ? JSON.parse(currentSettings) : {}
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? parsed.model_groups && typeof parsed.model_groups === 'object'
+          ? (parsed.model_groups as Record<string, unknown>)
+          : {}
+        : {}
+    } catch {
+      return {}
+    }
+  }, [currentSettings])
+
+  const updateModelGroups = useCallback(
+    (model: string, groups: string[]) => {
+      let settings: Record<string, unknown> = {}
+      try {
+        const parsed = currentSettings ? JSON.parse(currentSettings) : {}
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          settings = parsed
+        }
+      } catch {
+        settings = {}
+      }
+      const modelGroups =
+        settings.model_groups &&
+        typeof settings.model_groups === 'object' &&
+        !Array.isArray(settings.model_groups)
+          ? { ...(settings.model_groups as Record<string, unknown>) }
+          : {}
+      if (groups.length > 0) modelGroups[model] = groups
+      else delete modelGroups[model]
+      if (Object.keys(modelGroups).length > 0)
+        settings.model_groups = modelGroups
+      else delete settings.model_groups
+      form.setValue('settings', JSON.stringify(settings), { shouldDirty: true })
+    },
+    [currentSettings, form]
   )
 
   const currentTypeLabel = useMemo(
@@ -1477,6 +1521,36 @@ export function ChannelMutateDrawer({
   const handleModelsChange = useCallback(
     (selected: string[]) => {
       form.setValue('models', selected.join(','))
+      const settingsValue = form.getValues('settings')
+      try {
+        const settings = settingsValue ? JSON.parse(settingsValue) : {}
+        if (
+          settings &&
+          typeof settings === 'object' &&
+          !Array.isArray(settings)
+        ) {
+          const modelGroups =
+            settings.model_groups &&
+            typeof settings.model_groups === 'object' &&
+            !Array.isArray(settings.model_groups)
+              ? (settings.model_groups as Record<string, unknown>)
+              : {}
+          const selectedModels = new Set(selected)
+          for (const model of Object.keys(modelGroups)) {
+            if (!selectedModels.has(model)) delete modelGroups[model]
+          }
+          if (Object.keys(modelGroups).length > 0) {
+            settings.model_groups = modelGroups
+          } else {
+            delete settings.model_groups
+          }
+          form.setValue('settings', JSON.stringify(settings), {
+            shouldDirty: true,
+          })
+        }
+      } catch {
+        return
+      }
     },
     [form]
   )
@@ -2710,11 +2784,10 @@ export function ChannelMutateDrawer({
           <FormItem>
             <FormLabel>{t('Per-model quota overrides (JSON)')}</FormLabel>
             <FormControl>
-              <Textarea
-                rows={3}
-                placeholder={'{\n  "gpt-4o": { "daily_limit": 10 }\n}'}
-                {...field}
+              <ModelQuotaOverridesEditor
                 value={field.value || ''}
+                onChange={field.onChange}
+                models={currentModelsArray}
               />
             </FormControl>
             <FormDescription>
@@ -2733,11 +2806,10 @@ export function ChannelMutateDrawer({
           <FormItem>
             <FormLabel>{t('Per-model upstream ratios (JSON)')}</FormLabel>
             <FormControl>
-              <Textarea
-                rows={3}
-                placeholder={'{\n  "gpt-4o": 0.8\n}'}
-                {...field}
+              <ModelUpstreamRatiosEditor
                 value={field.value || ''}
+                onChange={field.onChange}
+                models={currentModelsArray}
               />
             </FormControl>
             <FormDescription>
@@ -3396,63 +3468,38 @@ export function ChannelMutateDrawer({
                     {t('Override request headers')}
                   </FormDescription>
                 </div>
-                <div className='flex flex-wrap gap-2'>
-                  <Button
-                    type='button'
-                    variant='outline'
-                    size='sm'
-                    onClick={() =>
-                      field.onChange(
-                        JSON.stringify(
-                          {
-                            '*': true,
-                            're:^X-Trace-.*$': true,
-                            'X-Foo': '{client_header:X-Foo}',
-                            Authorization: 'Bearer {api_key}',
-                          },
-                          null,
-                          2
-                        )
-                      )
-                    }
-                  >
-                    {t('Fill Template')}
-                  </Button>
-                  <Button
-                    type='button'
-                    variant='outline'
-                    size='sm'
-                    onClick={() => {
-                      void confirmEnablePassthrough('headers').then(
-                        (confirmed) => {
-                          if (!confirmed) return
-                          field.onChange(JSON.stringify({ '*': true }, null, 2))
-                        }
-                      )
-                    }}
-                  >
-                    {t('Passthrough Template')}
-                  </Button>
-                  <Button
-                    type='button'
-                    variant='ghost'
-                    size='sm'
-                    onClick={() => field.onChange('')}
-                  >
-                    {t('Clear')}
-                  </Button>
-                </div>
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  onClick={() => {
+                    void confirmEnablePassthrough('headers').then(
+                      (confirmed) => {
+                        if (!confirmed) return
+                        field.onChange(JSON.stringify({ '*': true }, null, 2))
+                      }
+                    )
+                  }}
+                >
+                  {t('Passthrough Template')}
+                </Button>
               </div>
               <FormControl>
-                <JsonCodeEditor
+                <JsonEditor
                   value={field.value || ''}
                   onChange={field.onChange}
-                  name={field.name}
-                  onBlur={field.onBlur}
-                  textareaRef={field.ref}
                   disabled={sensitiveLocked || isSubmitting}
-                  placeholder={t('Enter JSON to override request headers')}
-                  heightClassName='h-40 min-h-40 max-h-40'
+                  keyLabel={t('Header')}
+                  valueLabel={t('Value')}
+                  keyPlaceholder='Authorization'
+                  valuePlaceholder='Bearer {api_key}'
+                  template={{
+                    '*': true,
+                    're:^X-Trace-.*$': true,
+                    'X-Foo': '{client_header:X-Foo}',
+                    Authorization: 'Bearer {api_key}',
+                  }}
+                  valueType='any'
                 />
               </FormControl>
               <FormDescription className='text-xs'>
@@ -4022,6 +4069,57 @@ export function ChannelMutateDrawer({
                     )}
                   </p>
                 )}
+              </div>
+            )}
+
+            {currentModelsArray.length > 0 && (
+              <div className='mt-4 space-y-3 rounded-lg border border-dashed p-3'>
+                <div className='space-y-1'>
+                  <p className='text-sm font-medium'>
+                    {t('Model-specific groups')}
+                  </p>
+                  <p className='text-muted-foreground text-xs'>
+                    {t(
+                      'Override the channel groups for selected models. Models without an override use the channel groups below.'
+                    )}
+                  </p>
+                </div>
+                <div className='space-y-2'>
+                  {currentModelsArray.map((model) => {
+                    const savedGroups = currentModelGroups[model]
+                    const selectedGroups = Array.isArray(savedGroups)
+                      ? savedGroups.filter(
+                          (group): group is string => typeof group === 'string'
+                        )
+                      : []
+                    const options = [
+                      ...new Set([
+                        ...groupOptions.map((item) => item.value),
+                        ...selectedGroups,
+                      ]),
+                    ].map((group) => ({ value: group, label: group }))
+                    return (
+                      <div
+                        key={model}
+                        className='grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] sm:items-center'
+                      >
+                        <span className='truncate text-sm' title={model}>
+                          {model}
+                        </span>
+                        <MultiSelect
+                          options={options}
+                          selected={selectedGroups}
+                          onChange={(groups) =>
+                            updateModelGroups(model, groups)
+                          }
+                          placeholder={t('Use channel groups')}
+                          disabled={sensitiveLocked}
+                          maxVisibleChips={4}
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             )}
 

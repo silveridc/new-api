@@ -33,8 +33,16 @@ const MODEL_USAGE = {
   total_used: 42,
 }
 
-function storedChannel(modelQuotas: unknown[], quota: Record<string, unknown>) {
-  const settings = JSON.stringify({ quota, model_quotas: modelQuotas })
+function storedChannel(
+  modelQuotas: unknown[],
+  quota: Record<string, unknown>,
+  extraSettings: Record<string, unknown> = {}
+) {
+  const settings = JSON.stringify({
+    quota,
+    model_quotas: modelQuotas,
+    ...extraSettings,
+  })
   return channelSchema.parse({
     id: 7,
     name: 'Quota channel',
@@ -58,6 +66,17 @@ function settingsOf(form: ReturnType<typeof transformChannelToFormDefaults>) {
 }
 
 describe('channel quota model overrides', () => {
+  test('keeps model-specific groups in channel settings when saving', () => {
+    const modelGroups = {
+      'gpt-4o': ['vip'],
+      'claude-sonnet': ['default', 'team'],
+    }
+    const channel = storedChannel([], {}, { model_groups: modelGroups })
+    const form = transformChannelToFormDefaults(channel)
+
+    expect(settingsOf(form).model_groups).toEqual(modelGroups)
+  })
+
   test('re-saving a channel keeps the backend-accumulated usage and the gate enabled', () => {
     const channel = storedChannel(
       [

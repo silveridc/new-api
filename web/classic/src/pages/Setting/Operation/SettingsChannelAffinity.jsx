@@ -255,6 +255,7 @@ export default function SettingsChannelAffinity(props) {
   const [loading, setLoading] = useState(false);
 
   const [cacheLoading, setCacheLoading] = useState(false);
+  const [cacheClearing, setCacheClearing] = useState(false);
   const [cacheStats, setCacheStats] = useState({
     enabled: false,
     total: 0,
@@ -429,16 +430,22 @@ export default function SettingsChannelAffinity(props) {
         </div>
       ),
       onOk: async () => {
-        const res = await API.delete('/api/option/channel_affinity_cache', {
-          params: { all: true },
-        });
-        const { success, message } = res.data;
-        if (!success) {
-          showError(t(message));
-          return;
+        if (cacheClearing) return;
+        setCacheClearing(true);
+        try {
+          const res = await API.delete('/api/option/channel_affinity_cache', {
+            params: { all: true },
+          });
+          const { success, message } = res.data;
+          if (!success) {
+            showError(t(message));
+            return;
+          }
+          showSuccess(t('已清空'));
+          await refreshCacheStats();
+        } finally {
+          setCacheClearing(false);
         }
-        showSuccess(t('已清空'));
-        await refreshCacheStats();
       },
     });
   };
@@ -460,16 +467,22 @@ export default function SettingsChannelAffinity(props) {
         </div>
       ),
       onOk: async () => {
-        const res = await API.delete('/api/option/channel_affinity_cache', {
-          params: { rule_name: name },
-        });
-        const { success, message } = res.data;
-        if (!success) {
-          showError(t(message));
-          return;
+        if (cacheClearing) return;
+        setCacheClearing(true);
+        try {
+          const res = await API.delete('/api/option/channel_affinity_cache', {
+            params: { rule_name: name },
+          });
+          const { success, message } = res.data;
+          if (!success) {
+            showError(t(message));
+            return;
+          }
+          showSuccess(t('已清空'));
+          await refreshCacheStats();
+        } finally {
+          setCacheClearing(false);
         }
-        showSuccess(t('已清空'));
-        await refreshCacheStats();
       },
     });
   };
@@ -643,8 +656,15 @@ export default function SettingsChannelAffinity(props) {
         if (!name || !record?.include_rule_name) {
           return <Text type='tertiary'>N/A</Text>;
         }
-        const n = Number(cacheStats?.by_rule_name?.[name] || 0);
-        return <Text>{n}</Text>;
+        const n = cacheStats?.by_rule_name?.[name];
+        if (n === undefined) {
+          return (
+            <Text type='tertiary' title={t('保存该规则后才能单独清理它的缓存')}>
+              —
+            </Text>
+          );
+        }
+        return <Text>{Number(n)}</Text>;
       },
     },
     {
@@ -670,8 +690,12 @@ export default function SettingsChannelAffinity(props) {
             icon={<IconClose />}
             theme='borderless'
             type='warning'
-            disabled={!record?.include_rule_name}
-            title={t('清空该规则缓存')}
+            disabled={!record?.include_rule_name || cacheClearing}
+            title={
+              record?.include_rule_name
+                ? t('清空该规则缓存')
+                : t('该规则未启用“作用域：包含规则名称”，无法按规则清空缓存。')
+            }
             aria-label={t('清空该规则缓存')}
             onClick={() => confirmClearRuleCache(record)}
           />
@@ -1129,7 +1153,11 @@ export default function SettingsChannelAffinity(props) {
               >
                 {t('刷新缓存统计')}
               </Button>
-              <Button type='danger' onClick={confirmClearAllCache}>
+              <Button
+                type='danger'
+                disabled={cacheClearing}
+                onClick={confirmClearAllCache}
+              >
                 {t('清空全部缓存')}
               </Button>
             </Space>

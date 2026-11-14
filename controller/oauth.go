@@ -323,6 +323,8 @@ func handleOAuthLogin(c *gin.Context, provider oauth.Provider, oauthUser *oauth.
 			common.ApiErrorT(c, "User has been deleted")
 		case *OAuthRegistrationDisabledError:
 			common.ApiErrorT(c, "New user registration has been disabled by administrator")
+		case *OAuthProviderRegistrationDisabledError:
+			common.ApiErrorT(c, "{{provider}} registration has been disabled by administrator", providerParams(provider.GetName()))
 		case *OAuthEmailAlreadyTakenError:
 			common.ApiErrorT(c, "Email address is already in use")
 		case *OAuthLegacyBindingNotConfirmedError:
@@ -479,6 +481,9 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 	if !common.RegisterEnabled {
 		return nil, nil, &OAuthRegistrationDisabledError{}
 	}
+	if !provider.IsRegisterEnabled() {
+		return nil, nil, &OAuthProviderRegistrationDisabledError{}
+	}
 
 	// Set up new user
 	user.Username = provider.GetProviderPrefix() + strconv.Itoa(model.GetMaxUserId()+1)
@@ -600,6 +605,14 @@ type OAuthRegistrationDisabledError struct{}
 
 func (e *OAuthRegistrationDisabledError) Error() string {
 	return "registration is disabled"
+}
+
+// OAuthProviderRegistrationDisabledError reports that this specific provider
+// may sign in existing bindings but may not create new accounts.
+type OAuthProviderRegistrationDisabledError struct{}
+
+func (e *OAuthProviderRegistrationDisabledError) Error() string {
+	return "registration through this provider is disabled"
 }
 
 type OAuthEmailAlreadyTakenError struct{}
