@@ -13,6 +13,8 @@ GNU Affero General Public License for more details.
 
 You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
 */
 
 import { API } from '../helpers';
@@ -32,7 +34,7 @@ export const AUDIT_CATEGORIES = [
   { value: 'access_token', label: '访问令牌' },
 ];
 
-export const DEFAULT_AUDIT_PAGE_SIZE = 20;
+export const DEFAULT_AUDIT_PAGE_SIZE = 100;
 
 /**
  * 把筛选状态转换为后端查询参数。空值不发送；
@@ -64,6 +66,19 @@ export function buildAuditQueryParams(filters = {}) {
     params[key] = value;
   }
   return params;
+}
+
+export function auditFormValuesToQuery(values = {}) {
+  const dateRange = Array.isArray(values.dateRange) ? values.dateRange : [];
+  const start = dateRange[0] ? new Date(dateRange[0]).getTime() : NaN;
+  const end = dateRange[1] ? new Date(dateRange[1]).getTime() : NaN;
+  return buildAuditQueryParams({
+    ...values,
+    start_timestamp: Number.isFinite(start)
+      ? Math.floor(start / 1000)
+      : undefined,
+    end_timestamp: Number.isFinite(end) ? Math.floor(end / 1000) : undefined,
+  });
 }
 
 /**
@@ -191,7 +206,9 @@ export function buildAuditDetails(entry = {}) {
 /** 插件平台名（admin_info.task_plugin 或 root_info.task_plugin 的 name/key/version） */
 export function describeAuditTaskPlugin(entry = {}) {
   const metadata = isDetailObject(entry.other) ? entry.other : {};
-  const admin = isDetailObject(metadata.admin_info) ? metadata.admin_info : null;
+  const admin = isDetailObject(metadata.admin_info)
+    ? metadata.admin_info
+    : null;
   const root = isDetailObject(metadata.root_info) ? metadata.root_info : null;
   const plugin = admin?.task_plugin || root?.task_plugin || null;
   if (!plugin || typeof plugin !== 'object') return null;
@@ -221,9 +238,7 @@ export function getAuditListFields(entry = {}) {
   }
   const op = isDetailObject(metadata.op) ? metadata.op : {};
   const params = isDetailObject(op.params) ? op.params : {};
-  const admin = isDetailObject(metadata.admin_info)
-    ? metadata.admin_info
-    : {};
+  const admin = isDetailObject(metadata.admin_info) ? metadata.admin_info : {};
   const auditInfo = isDetailObject(metadata.audit_info)
     ? metadata.audit_info
     : {};
@@ -239,8 +254,7 @@ export function getAuditListFields(entry = {}) {
   return {
     action: op.action || entry.action || '',
     targetUserId: pick('target_user_id', 'user_id'),
-    verificationMethod:
-      pick('verification_method') || admin.auth_method || '',
+    verificationMethod: pick('verification_method') || admin.auth_method || '',
     loginMethod: metadata.login_method || pick('method') || '',
     provider: pick('provider'),
     userAgent: metadata.user_agent || '',

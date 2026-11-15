@@ -13,6 +13,8 @@ GNU Affero General Public License for more details.
 
 You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
 */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -27,6 +29,7 @@ vi.mock('../../helpers', () => ({ API }));
 
 import {
   buildAuditQueryParams,
+  auditFormValuesToQuery,
   getAuditLogs,
   buildAuditDetails,
   describeAuditTaskPlugin,
@@ -39,7 +42,7 @@ describe('auditLogs service contract', () => {
   });
 
   it('buildAuditQueryParams keeps pagination and drops empty filters', () => {
-    expect(buildAuditQueryParams()).toEqual({ p: 1, page_size: 20 });
+    expect(buildAuditQueryParams()).toEqual({ p: 1, page_size: 100 });
     expect(
       buildAuditQueryParams({
         p: 3,
@@ -67,7 +70,26 @@ describe('auditLogs service contract', () => {
     // success 为 'all' 时不发送
     expect(buildAuditQueryParams({ success: 'all', category: 'all' })).toEqual({
       p: 1,
-      page_size: 20,
+      page_size: 100,
+    });
+  });
+
+  it('auditFormValuesToQuery converts date picker values to second timestamps', () => {
+    expect(
+      auditFormValuesToQuery({
+        dateRange: ['2026-11-15T00:00:00.000Z', '2026-11-15T01:00:00.000Z'],
+        success: 'false',
+        category: 'security',
+        request_id: 'req-1',
+      }),
+    ).toEqual({
+      p: 1,
+      page_size: 100,
+      start_timestamp: 1794700800,
+      end_timestamp: 1794704400,
+      success: 'false',
+      category: 'security',
+      request_id: 'req-1',
     });
   });
 
@@ -110,9 +132,15 @@ describe('auditLogs service contract', () => {
   });
 
   it('getAuditLogs wraps HTTP 403 rejections with status for scope fallback', async () => {
-    const httpError = Object.assign(new Error('Request failed with status code 403'), {
-      response: { status: 403, data: { success: false, message: 'forbidden' } },
-    });
+    const httpError = Object.assign(
+      new Error('Request failed with status code 403'),
+      {
+        response: {
+          status: 403,
+          data: { success: false, message: 'forbidden' },
+        },
+      },
+    );
     API.get.mockRejectedValue(httpError);
     let caught;
     try {
@@ -142,7 +170,12 @@ describe('auditLogs service contract', () => {
           quota_saturation: { original: 100, clamped: 50, op: 'pre_consume' },
           task_plugin: { key: 'suno', name: 'Suno', version: '1.0' },
         },
-        audit_info: { method: 'PUT', route: '/api/channel/', status: 200, success: true },
+        audit_info: {
+          method: 'PUT',
+          route: '/api/channel/',
+          status: 200,
+          success: true,
+        },
         login_method: 'password',
       },
     };
